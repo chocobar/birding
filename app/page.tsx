@@ -162,11 +162,18 @@ export default function Home() {
       {/* Footer */}
       <footer className="bg-white border-t border-gray-200 mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <p className="text-center text-sm text-gray-600">
-            Data sources: Postcodes.io, OpenStreetMap
-            {' • '}
-            UK-only coverage
-          </p>
+          <div className="text-center text-sm text-gray-600 space-y-2">
+            <p>
+              Postcode data: <a href="https://postcodes.io" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Postcodes.io</a> (Contains OS data © Crown copyright)
+              {' • '}
+              Location data: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">OpenStreetMap contributors</a>
+              {' • '}
+              Photos: <a href="https://unsplash.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Unsplash</a>
+            </p>
+            <p className="text-xs">
+              UK-only coverage • Open source project • See <a href="https://github.com/yourusername/birding-3/blob/main/DATA_ATTRIBUTION.md" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">DATA_ATTRIBUTION.md</a> for full license details
+            </p>
+          </div>
         </div>
       </footer>
     </div>

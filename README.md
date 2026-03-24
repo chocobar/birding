@@ -7,6 +7,7 @@ A Next.js web application that helps users discover common birds and nearby bird
 - 🐦 **Bird Discovery**: Find the most common bird species in your area
 - 📍 **Location Finder**: Discover nearby parks, woodlands, nature reserves, and walking trails
 - 🔍 **Postcode Search**: Simple UK postcode-based search
+- 📍 **Auto-Location**: Click a button to automatically detect your location and find your postcode
 - 📱 **Responsive Design**: Works on mobile, tablet, and desktop
 - ♿ **Accessible**: WCAG 2.1 AA compliant with keyboard navigation and screen reader support
 
@@ -62,9 +63,18 @@ npm start
 ## Usage
 
 1. Enter a valid UK postcode (e.g., "SW1A 1AA" or "M1 1AE")
+   - **OR** click the 📍 location button to auto-detect your postcode
 2. View the list of common birds in your area
 3. Explore nearby birding locations within a 5-mile radius
 4. Click on locations to see distance and type (woodland, water, park, etc.)
+
+### Auto-Location Feature
+
+The app can automatically detect your location using your browser's geolocation API:
+- Click the green map pin (📍) button next to the search box
+- Allow location access when prompted by your browser
+- The app will find your nearest UK postcode and search automatically
+- Works on both desktop and mobile browsers
 
 ## Project Structure
 

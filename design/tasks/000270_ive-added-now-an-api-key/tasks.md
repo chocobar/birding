@@ -9,7 +9,7 @@
 - [x] Update `components/BirdCard.tsx` — show observation location and date below the description when `locationName` or `observationDate` are present
 - [x] Update `components/BirdList.tsx` — add a small data source indicator below the heading (e.g. "Live data from eBird" vs "Sample data") by accepting and displaying an `isLiveData` prop
 - [x] Update `app/page.tsx` — adjust `handleSearch` to receive and pass `isLiveData` flag from `birdClient` through to `BirdList`
-- [~] Update `README.md` — update the API Integration section to reflect eBird is now live, document `.env.local` setup with `EBIRD_API_KEY` (server-only, no `NEXT_PUBLIC_` prefix)
-- [ ] Manual test: run `npm run dev`, search a UK postcode (e.g. "SW1A 1AA"), verify real bird observations appear with species names, locations, and dates. Confirm the API key does NOT appear in browser DevTools Network tab requests
+- [x] Update `README.md` — update the API Integration section to reflect eBird is now live, document `.env.local` setup with `EBIRD_API_KEY` (server-only, no `NEXT_PUBLIC_` prefix)
+- [~] Manual test: run `npm run dev`, search a UK postcode (e.g. "SW1A 1AA"), verify real bird observations appear with species names, locations, and dates. Confirm the API key does NOT appear in browser DevTools Network tab requests
 - [ ] Manual test: unset `EBIRD_API_KEY`, restart dev server, verify fallback mock data renders with "Sample data" indicator
 - [ ] Run `npm run build` to confirm no TypeScript or build errors

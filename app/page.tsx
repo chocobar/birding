@@ -15,6 +15,7 @@ interface SearchState {
   locations: any[];
   isLoadingBirds: boolean;
   isLoadingLocations: boolean;
+  isLiveData: boolean;
   error: string | null;
 }
 
@@ -25,6 +26,7 @@ export default function Home() {
     locations: [],
     isLoadingBirds: false,
     isLoadingLocations: false,
+    isLiveData: false,
     error: null,
   });
 
@@ -42,17 +44,18 @@ export default function Home() {
       const postcodeData = await geocodePostcode(postcode);
 
       // Step 2: Fetch birds and locations in parallel
-      const [birds, locations] = await Promise.all([
+      const [birdResult, locations] = await Promise.all([
         getBirdsForLocation(postcodeData.latitude, postcodeData.longitude, 5),
         getNearbyLocations(postcodeData.latitude, postcodeData.longitude, 5),
       ]);
 
       setSearchState(prev => ({
         ...prev,
-        birds,
+        birds: birdResult.birds,
         locations,
         isLoadingBirds: false,
         isLoadingLocations: false,
+        isLiveData: birdResult.isLiveData,
       }));
     } catch (error) {
       console.error('Search error:', error);
@@ -114,6 +117,7 @@ export default function Home() {
             <BirdList
               birds={searchState.birds}
               isLoading={searchState.isLoadingBirds}
+              isLiveData={searchState.isLiveData}
             />
 
             {/* Locations Section */}

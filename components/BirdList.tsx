@@ -12,8 +12,11 @@ interface BirdListProps {
     description?: string;
     conservationStatus?: string;
     frequency?: number;
+    locationName?: string;
+    observationDate?: string;
   }>;
   isLoading?: boolean;
+  isLiveData?: boolean;
 }
 
 function SkeletonCard() {
@@ -30,7 +33,7 @@ function SkeletonCard() {
   );
 }
 
-export default function BirdList({ birds, isLoading = false }: BirdListProps) {
+export default function BirdList({ birds, isLoading = false, isLiveData }: BirdListProps) {
   if (isLoading) {
     return (
       <section className="w-full" aria-label="Loading bird results">
@@ -63,11 +66,16 @@ export default function BirdList({ birds, isLoading = false }: BirdListProps) {
     <section className="w-full" aria-label="Bird results">
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-gray-900">
-          Common Birds in Your Area
+          {isLiveData ? 'Recent Bird Sightings' : 'Common Birds in Your Area'}
         </h2>
         <p className="text-gray-600 mt-1">
-          {birds.length} species frequently observed in this location
+          {birds.length} species {isLiveData ? 'recently observed near this location' : 'frequently observed in this location'}
         </p>
+        {isLiveData !== undefined && (
+          <p className={`mt-1 text-xs font-medium ${isLiveData ? 'text-green-600' : 'text-amber-600'}`}>
+            {isLiveData ? '● Live data from eBird' : '● Sample data (eBird unavailable)'}
+          </p>
+        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">

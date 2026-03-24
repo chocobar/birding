@@ -12,6 +12,8 @@ interface BirdCardProps {
     description?: string;
     conservationStatus?: string;
     frequency?: number;
+    locationName?: string;
+    observationDate?: string;
   };
 }
 
@@ -76,6 +78,21 @@ export default function BirdCard({ bird }: BirdCardProps) {
           <p className="text-sm text-gray-700 line-clamp-3">
             {bird.description}
           </p>
+        )}
+
+        {(bird.locationName || bird.observationDate) && (
+          <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500">
+            {bird.locationName && (
+              <span className="flex items-center gap-1">
+                📍 {bird.locationName}
+              </span>
+            )}
+            {bird.observationDate && (
+              <span className="flex items-center gap-1">
+                🕐 {bird.observationDate.split(' ')[0]}
+              </span>
+            )}
+          </div>
         )}
 
         {bird.frequency && (

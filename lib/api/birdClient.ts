@@ -1,8 +1,7 @@
 import { Bird } from '@/lib/types';
 
 /**
- * Mock data for common UK birds
- * In production, this would be replaced with eBird API or similar
+ * Mock data for common UK birds — used as fallback when eBird API is unavailable
  */
 const UK_COMMON_BIRDS: Bird[] = [
   {
@@ -158,28 +157,54 @@ const UK_COMMON_BIRDS: Bird[] = [
 ];
 
 /**
- * Fetch common birds for a given location
- * Currently returns mock data, can be replaced with eBird API integration
+ * Result from fetching birds — includes data source indicator
+ */
+export interface BirdResult {
+  birds: Bird[];
+  isLiveData: boolean;
+}
+
+/**
+ * Fetch birds for a given location via the server-side proxy (/api/birds).
+ * Falls back to mock data if the API is unavailable or returns no results.
  */
 export async function getBirdsForLocation(
   latitude: number,
   longitude: number,
   radiusMiles: number = 5
-): Promise<Bird[]> {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 500));
+): Promise<BirdResult> {
+  try {
+    const params = new URLSearchParams({
+      lat: latitude.toString(),
+      lng: longitude.toString(),
+    });
 
-  // For V1, return top 12 most common UK birds
-  // In production, this would query eBird API with coordinates and radius
-  return UK_COMMON_BIRDS.slice(0, 12);
+    const response = await fetch(`/api/birds?${params.toString()}`);
+
+    if (!response.ok) {
+      console.error(`/api/birds returned ${response.status}`);
+      return { birds: UK_COMMON_BIRDS.slice(0, 12), isLiveData: false };
+    }
+
+    const data = await response.json();
+
+    // If the server returned live data with results, use it
+    if (data.isLiveData && Array.isArray(data.birds) && data.birds.length > 0) {
+      return { birds: data.birds, isLiveData: true };
+    }
+
+    // Server couldn't get live data (missing key, eBird error, etc.) — use mock
+    return { birds: UK_COMMON_BIRDS.slice(0, 12), isLiveData: false };
+  } catch (error) {
+    console.error('Error fetching birds from /api/birds:', error);
+    return { birds: UK_COMMON_BIRDS.slice(0, 12), isLiveData: false };
+  }
 }
 
 /**
- * Search birds by name
+ * Search birds by name (uses mock data only)
  */
 export async function searchBirds(query: string): Promise<Bird[]> {
-  await new Promise(resolve => setTimeout(resolve, 300));
-
   const lowerQuery = query.toLowerCase();
   return UK_COMMON_BIRDS.filter(
     bird =>
@@ -189,7 +214,7 @@ export async function searchBirds(query: string): Promise<Bird[]> {
 }
 
 /**
- * Get a single bird by ID
+ * Get a single bird by ID (uses mock data only)
  */
 export async function getBirdById(id: string): Promise<Bird | null> {
   const bird = UK_COMMON_BIRDS.find(b => b.id === id);
@@ -197,7 +222,7 @@ export async function getBirdById(id: string): Promise<Bird | null> {
 }
 
 /**
- * Get all available birds (for reference)
+ * Get all available birds (mock data for reference)
  */
 export async function getAllBirds(): Promise<Bird[]> {
   return [...UK_COMMON_BIRDS];

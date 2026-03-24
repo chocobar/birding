@@ -61,7 +61,7 @@ export default function PostcodeSearch({ onSearch, isLoading = false }: Postcode
             onKeyDown={handleKeyDown}
             placeholder="Enter UK postcode (e.g., SW1A 1AA)"
             disabled={isLoading}
-            className={`w-full px-4 py-3 pr-12 text-lg border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all ${
+            className={`w-full px-4 py-3 pr-12 text-lg font-bold text-black border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all ${
               validationError
                 ? 'border-red-500 focus:ring-red-500'
                 : 'border-gray-300 focus:border-blue-500'

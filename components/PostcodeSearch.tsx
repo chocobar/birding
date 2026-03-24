@@ -35,7 +35,7 @@ export default function PostcodeSearch({ onSearch, isLoading = false }: Postcode
     }
 
     if (!validatePostcode(trimmedValue)) {
-      setValidationError('Please enter a valid UK postcode (e.g., SW1A 1AA, M1 1AE)');
+      setValidationError('Please enter a valid postcode (UK format currently supported, e.g., SW1A 1AA, M1 1AE)');
       return;
     }
 
@@ -129,14 +129,14 @@ export default function PostcodeSearch({ onSearch, isLoading = false }: Postcode
             value={inputValue}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
-            placeholder="Enter UK postcode (e.g., SW1A 1AA)"
+            placeholder="Enter your postcode or location"
             disabled={isLoading}
             className={`w-full px-4 py-3 pr-12 text-lg font-bold text-black border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all ${
               validationError
                 ? 'border-red-500 focus:ring-red-500'
                 : 'border-gray-300 focus:border-blue-500'
             } ${isLoading ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
-            aria-label="UK postcode search"
+            aria-label="Location search"
             aria-invalid={!!validationError}
             aria-describedby={validationError ? 'postcode-error' : undefined}
           />
@@ -182,7 +182,7 @@ export default function PostcodeSearch({ onSearch, isLoading = false }: Postcode
       </form>
 
       <div className="mt-4 text-center text-sm text-gray-600">
-        <p>Enter a postcode or click <MapPin className="w-4 h-4 inline" /> to use your location</p>
+        <p>Enter your location or click <MapPin className="w-4 h-4 inline" /> to auto-detect (UK postcodes currently supported)</p>
       </div>
     </div>
   );

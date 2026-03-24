@@ -78,10 +78,10 @@ export default function Home() {
             </div>
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-                UK Birding Discovery
+                Birding Discovery
               </h1>
               <p className="text-sm text-gray-600 mt-0.5">
-                Discover birds and birding locations near you
+                Discover birds and birding locations anywhere in the world
               </p>
             </div>
           </div>
@@ -131,10 +131,10 @@ export default function Home() {
             <div className="max-w-2xl mx-auto">
               <BirdIcon className="w-20 h-20 text-blue-500 mx-auto mb-6" />
               <h2 className="text-3xl font-bold text-gray-900 mb-4">
-                Welcome to UK Birding Discovery
+                Welcome to Birding Discovery
               </h2>
               <p className="text-lg text-gray-700 mb-6">
-                Enter your UK postcode above to discover:
+                Enter your location above to discover:
               </p>
               <div className="grid sm:grid-cols-2 gap-6 text-left">
                 <div className="bg-white p-6 rounded-lg shadow-sm">
@@ -164,14 +164,14 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="text-center text-sm text-gray-600 space-y-2">
             <p>
-              Postcode data: <a href="https://postcodes.io" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Postcodes.io</a> (Contains OS data © Crown copyright)
+              Postcode data: <a href="https://postcodes.io" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Postcodes.io</a> (UK: Contains OS data © Crown copyright)
               {' • '}
               Location data: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">OpenStreetMap contributors</a>
               {' • '}
               Photos: <a href="https://unsplash.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Unsplash</a>
             </p>
             <p className="text-xs">
-              UK-only coverage • Open source project • See <a href="https://github.com/yourusername/birding-3/blob/main/DATA_ATTRIBUTION.md" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">DATA_ATTRIBUTION.md</a> for full license details
+              Currently supporting UK postcodes • Expanding globally soon • Open source project • See <a href="https://github.com/yourusername/birding-3/blob/main/DATA_ATTRIBUTION.md" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">DATA_ATTRIBUTION.md</a> for license details
             </p>
           </div>
         </div>

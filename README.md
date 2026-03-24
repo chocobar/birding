@@ -1,13 +1,16 @@
-# UK Birding Discovery
+# Birding Discovery
 
-A Next.js web application that helps users discover common birds and nearby birding locations in the UK based on their postcode.
+A Next.js web application that helps users discover common birds and nearby birding locations anywhere in the world.
+
+**Current Coverage:** UK postcodes (expanding to global locations soon)
 
 ## Features
 
 - 🐦 **Bird Discovery**: Find the most common bird species in your area
 - 📍 **Location Finder**: Discover nearby parks, woodlands, nature reserves, and walking trails
-- 🔍 **Postcode Search**: Simple UK postcode-based search
-- 📍 **Auto-Location**: Click a button to automatically detect your location and find your postcode
+- 🔍 **Location Search**: Search by postcode or address (UK postcodes currently supported)
+- 📍 **Auto-Location**: Click a button to automatically detect your location
+- 🌍 **Global Vision**: Built for worldwide expansion (starting with UK)
 - 📱 **Responsive Design**: Works on mobile, tablet, and desktop
 - ♿ **Accessible**: WCAG 2.1 AA compliant with keyboard navigation and screen reader support
 
@@ -62,11 +65,13 @@ npm start
 
 ## Usage
 
-1. Enter a valid UK postcode (e.g., "SW1A 1AA" or "M1 1AE")
-   - **OR** click the 📍 location button to auto-detect your postcode
+1. Enter your location (currently supporting UK postcodes like "SW1A 1AA" or "M1 1AE")
+   - **OR** click the 📍 location button to auto-detect your location
 2. View the list of common birds in your area
 3. Explore nearby birding locations within a 5-mile radius
 4. Click on locations to see distance and type (woodland, water, park, etc.)
+
+**Note:** While the app is built for global use, UK postcodes are currently the primary supported format. International location support is planned for future releases.
 
 ### Auto-Location Feature
 
@@ -127,15 +132,17 @@ This project uses data from multiple sources. We are committed to proper attribu
 
 ### Current Data Sources
 
-- **Postcode Data**: [Postcodes.io](https://postcodes.io) 
+- **Postcode Data (UK)**: [Postcodes.io](https://postcodes.io) 
   - License: Open Government License (OGL) v3.0
   - Contains OS data © Crown copyright
   - No API key required
+  - Coverage: United Kingdom only (global geocoding APIs planned)
   
-- **Location Data**: [OpenStreetMap](https://www.openstreetmap.org)
+- **Location Data (Global)**: [OpenStreetMap](https://www.openstreetmap.org)
   - License: Open Database License (ODbL) 1.0
   - © OpenStreetMap contributors
   - No API key required
+  - Coverage: Worldwide
   
 - **Bird Images**: [Unsplash](https://unsplash.com)
   - License: Unsplash License
@@ -149,17 +156,26 @@ All data sources are properly attributed in the application footer and we comply
 - Attribution requirements
 - API usage limits
 - Future eBird API integration plans
+- Global expansion plans
 
 Please see **[DATA_ATTRIBUTION.md](DATA_ATTRIBUTION.md)** for comprehensive licensing information.
 
 ### No API Keys Required (Currently)
 
 The app currently works with **no API keys** needed! All data sources have free, open APIs:
-- ✅ Postcodes.io - Free, no registration
-- ✅ OpenStreetMap Overpass API - Free, no registration  
+- ✅ Postcodes.io - Free, no registration (UK only currently)
+- ✅ OpenStreetMap Overpass API - Free, no registration (global coverage)
 - ✅ Unsplash - Hotlinking allowed, no key needed
 
 **For production use with eBird data**, you would need to register for a free eBird API key.
+
+### Expanding Beyond the UK
+
+The app is architected for global use. Future enhancements will include:
+- Google Geocoding API or similar for international addresses
+- Country-specific postcode/zip code formats
+- Regional bird data from eBird API
+- Multi-language support
 
 ## Browser Support
 

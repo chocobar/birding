@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "UK Birding Discovery | Find Birds and Birding Locations",
-  description: "Discover common birds and nearby birding locations in the UK. Enter your postcode to find parks, woodlands, nature reserves, and bird species in your area.",
-  keywords: "birds, birdwatching, UK birds, birding locations, nature reserves, wildlife, postcode search",
+  title: "Birding Discovery | Find Birds and Birding Locations Worldwide",
+  description: "Discover common birds and nearby birding locations anywhere in the world. Enter your location to find parks, woodlands, nature reserves, and bird species in your area.",
+  keywords: "birds, birdwatching, birding locations, nature reserves, wildlife, bird identification, birdwatching app, ornithology",
 };
 
 export default function RootLayout({

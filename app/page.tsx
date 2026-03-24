@@ -171,7 +171,7 @@ export default function Home() {
               Photos: <a href="https://unsplash.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Unsplash</a>
             </p>
             <p className="text-xs">
-              Currently supporting UK postcodes • Expanding globally soon • Open source project • See <a href="https://github.com/yourusername/birding-3/blob/main/DATA_ATTRIBUTION.md" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">DATA_ATTRIBUTION.md</a> for license details
+              Currently supporting UK postcodes • Open source project • See <a href="https://github.com/yourusername/birding-3/blob/main/DATA_ATTRIBUTION.md" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">DATA_ATTRIBUTION.md</a> for license details
             </p>
           </div>
         </div>

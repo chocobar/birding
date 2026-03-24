@@ -146,3 +146,36 @@ eBird doesn't provide images via the observations API. The BirdCard already hand
 - `next.config.ts` — no new image domains needed (eBird doesn't serve images)
 - `.gitignore` — `.env*` is already ignored
 - No new npm dependencies needed — using native `fetch` on both client and server
+
+## Implementation Notes
+
+### Environment Variable Handling
+- The `NEXT_PUBLIC_EBIRD_API_KEY` env var was already set in the environment. We renamed it to `EBIRD_API_KEY` (dropped `NEXT_PUBLIC_` prefix) and created a `.env.local` file with the server-only name.
+- Next.js 16 loads `.env.local` automatically — confirmed in dev server output: `Environments: .env.local`
+- The `.env.local` file is already gitignored by the default `.gitignore` pattern `.env*`.
+
+### Next.js 16 Route Handlers
+- Checked `node_modules/next/dist/docs/01-app/01-getting-started/15-route-handlers.md` — the standard pattern `export async function GET(request: Request)` works unchanged in Next.js 16.
+- Route Handlers use Web standard `Request`/`Response` APIs. `Response.json()` works directly.
+- The build correctly identifies `/api/birds` as `ƒ (Dynamic)` — server-rendered on demand, which is what we need since it reads `process.env` at runtime.
+- `NextRequest` from `next/server` provides `nextUrl.searchParams` for easy query parameter access.
+
+### eBird API Details
+- Endpoint: `GET https://api.ebird.org/v2/data/obs/geo/recent`
+- Auth header: `X-eBirdApiToken: <key>` — returns 403 without it.
+- Response is a flat JSON array of observation objects (not paginated, not wrapped).
+- We request `maxResults=50` then deduplicate by `speciesCode` (same species seen at multiple locations) and limit to 12 unique species.
+- The `howMany` field is optional — some observations don't report count.
+- The `obsDt` format is `"YYYY-MM-DD HH:MM"` — we split on space to display just the date in the UI.
+
+### Fallback Behavior
+- When `EBIRD_API_KEY` is missing, the server route returns `{ birds: [], isLiveData: false }` with status 200 (not an error status). The client-side `birdClient.ts` detects `isLiveData: false` and serves mock data instead.
+- The UI adapts its heading: "Recent Bird Sightings" (live) vs "Common Birds in Your Area" (fallback), and shows a colored data source indicator.
+
+### Security Verification
+- Confirmed via browser DevTools Network tab: the `/api/birds?lat=...&lng=...` request contains NO API key in headers, URL, or body. The key only exists server-side in `process.env`.
+- The eBird API call happens entirely on the Next.js server — the browser never contacts `api.ebird.org` directly.
+
+### Gotchas
+- When testing without the API key, you must actually remove/rename `.env.local` and restart the dev server. Setting `EBIRD_API_KEY=` as an inline env override doesn't work because `.env.local` takes precedence in Next.js's env loading order.
+- The Overpass API (for locations) occasionally returns 504 Gateway Timeout — this is pre-existing and unrelated to our changes. The `locationClient.ts` already has mock fallback for this.

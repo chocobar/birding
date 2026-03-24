@@ -181,6 +181,43 @@ The app works on any platform supporting Next.js:
 - AWS Amplify
 - Self-hosted Node.js
 
+## License
+
+This project is licensed under terms similar to the Helix license. You can use this software for free for:
+
+- **Personal Use** - Individual, non-commercial use
+- **Educational Use** - Schools and universities
+- **Small Business Use** - Companies with < 250 employees and < $10M annual revenue
+- **Open Source Projects** - Non-commercial open source work
+
+For commercial use outside these terms, please see [LICENSE.md](LICENSE.md) for details.
+
+**You are not allowed to:**
+- Use this software to build a competing product
+- Redistribute commercially without permission
+
+See [LICENSE.md](LICENSE.md) for complete license terms.
+
+## Contributing
+
+We welcome contributions! 🎉
+
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) for:
+- Code of conduct
+- Development setup
+- Coding standards
+- Pull request process
+- How to report bugs
+- How to suggest features
+
+**Quick start for contributors:**
+```bash
+git clone https://github.com/YOUR-USERNAME/birding-3.git
+cd birding-3
+npm install
+npm run dev
+```
+
 ## Contact
 
 For questions or feedback, please open an issue on GitHub.

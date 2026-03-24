@@ -12,14 +12,43 @@ The bird data is the only mock piece. Locations and geocoding are already live.
 
 ## Key Codebase Facts (Discovered During Planning)
 
-- **Environment variable is already set:** `NEXT_PUBLIC_EBIRD_API_KEY` is available in the environment
+- **Environment variable is already set:** `NEXT_PUBLIC_EBIRD_API_KEY` is currently in the environment — but this prefix exposes it to the browser, so we will **rename it to `EBIRD_API_KEY`** (server-only)
 - **`.env*` is already gitignored** — no changes needed to `.gitignore`
-- **No Next.js API routes exist** — all API calls happen client-side (the `NEXT_PUBLIC_` prefix makes the key available in browser code, which is fine for eBird — it's a free, non-sensitive key)
+- **No Next.js API routes exist yet** — we will create the first one at `app/api/birds/route.ts`
 - **The `Bird` type** in `lib/types/Bird.ts` has: `id`, `commonName`, `scientificName`, `imageUrl?`, `description?`, `frequency?`, `conservationStatus?`, `season?`
 - **BirdCard component** renders: name, scientific name, image, description, conservation status badge, frequency bar
 - **Next.js 16 has breaking changes** — the `AGENTS.md` warns to check `node_modules/next/dist/docs/` before writing code
 
-## eBird API 2.0 Integration
+## Security: Why a Server-Side Proxy
+
+**Problem:** The original plan used `NEXT_PUBLIC_EBIRD_API_KEY` and called eBird directly from the browser. This means:
+- The API key is bundled into client-side JavaScript (visible in page source)
+- The API key is sent as an `X-eBirdApiToken` HTTP header (visible in browser DevTools → Network tab)
+- Anyone inspecting traffic can copy and abuse the key
+
+**Solution:** Route all eBird requests through a Next.js API route. The browser calls `/api/birds?lat=...&lng=...` (no key needed). The server-side route reads `EBIRD_API_KEY` from `process.env` (never bundled to the client) and forwards the request to eBird.
+
+## New Architecture (with API route)
+
+```
+Browser                          Server (Next.js)                    eBird API
+──────                          ────────────────                    ─────────
+1. User searches postcode
+2. postcodeClient → Postcodes.io → lat/lng
+3. birdClient calls:
+   GET /api/birds?lat=51.5&lng=-0.12
+   (no API key sent)
+                                4. Route handler reads
+                                   process.env.EBIRD_API_KEY
+                                5. Calls eBird API with key
+                                   in X-eBirdApiToken header
+                                                                   6. Returns observations
+                                7. Maps + deduplicates
+                                8. Returns JSON to browser
+9. Renders bird cards
+```
+
+## eBird API 2.0 Details
 
 ### Endpoint
 
@@ -33,7 +62,7 @@ The bird data is the only mock piece. Locations and geocoding are already live.
 | `maxResults` | `12` | Matches current slice(0, 12) |
 | `back` | `14` | Last 14 days of observations |
 
-**Header:** `X-eBirdApiToken: <API_KEY>`
+**Header:** `X-eBirdApiToken: <EBIRD_API_KEY>`
 
 ### eBird Response Shape
 
@@ -61,45 +90,59 @@ The bird data is the only mock piece. Locations and geocoding are already live.
 | `commonName` | `comName` | Direct map |
 | `scientificName` | `sciName` | Direct map |
 | `description` | Generated | e.g. "Observed at Hyde Park on Jan 15, 2025 (3 individuals)" |
+| `locationName` | `locName` | New optional field |
+| `observationDate` | `obsDt` | New optional field |
 | `frequency` | Not available | Omit — the frequency bar won't show (BirdCard already handles `undefined`) |
 | `imageUrl` | Not available | Omit — BirdCard already shows a placeholder icon when missing |
 | `conservationStatus` | Not available | Omit — badge won't render (already handled) |
 
 ## Design Decisions
 
-### 1. Client-side fetch (no API route)
+### 1. Server-side API route proxy (protects the API key)
 
-**Decision:** Call eBird directly from the browser, same as the current mock pattern.
+**Decision:** Create a Next.js Route Handler at `app/api/birds/route.ts` that proxies requests to eBird. The browser only calls `/api/birds?lat=...&lng=...`.
 
-**Rationale:** The `NEXT_PUBLIC_` prefix is already chosen by the user, indicating intent for client-side use. eBird API keys are free and non-sensitive (rate-limited, not billing-linked). Adding a server-side API route would add complexity with no security benefit for this use case.
+**Rationale:** The `NEXT_PUBLIC_` prefix exposes environment variables to the browser bundle. Even though eBird keys are free, the user's key is tied to their account and could be rate-limited or revoked if abused. A server-side proxy keeps the key in `process.env` only — never in client JS or network requests visible in DevTools.
 
-### 2. Deduplicate by species
+**Implication:** The env var must be renamed from `NEXT_PUBLIC_EBIRD_API_KEY` to `EBIRD_API_KEY`. The `.env.local` file (and any deployment config like Vercel) should use the new name.
 
-The eBird "recent observations" endpoint returns one entry per observation, so the same species can appear multiple times (from different locations/dates). We should deduplicate by `speciesCode`, keeping the most recent observation per species.
+### 2. Input validation on the API route
 
-### 3. Fallback to mock data
+The route handler validates `lat` and `lng` query parameters before forwarding to eBird:
+- Both must be present and numeric
+- `lat` must be between -90 and 90
+- `lng` must be between -180 and 180
+- Returns 400 with a clear error if validation fails
 
-If the API call fails or the key is missing, return the existing mock data. This keeps the demo functional without an API key. A small text indicator below the bird list heading will say "Live data from eBird" or "Sample data (eBird unavailable)" so the user knows what they're seeing.
+### 3. Deduplicate by species
 
-### 4. No image changes
+The eBird "recent observations" endpoint returns one entry per observation, so the same species can appear multiple times (from different locations/dates). The server-side route deduplicates by `speciesCode`, keeping the most recent observation per species.
 
-eBird doesn't provide images via the observations API. The BirdCard already handles missing `imageUrl` with a placeholder bird icon. No changes needed to the card component.
+### 4. Fallback to mock data (client-side)
+
+If the `/api/birds` call fails (server error, missing key, eBird down), `birdClient.ts` catches the error and returns the existing mock data. The response from the API route includes an `isLiveData: boolean` flag so the UI can indicate the data source. On fallback, `birdClient.ts` sets this to `false`.
+
+### 5. No image changes
+
+eBird doesn't provide images via the observations API. The BirdCard already handles missing `imageUrl` with a placeholder bird icon. No changes needed to the card component for images.
 
 ## Files to Change
 
 | File | Change |
 |------|--------|
-| `lib/api/birdClient.ts` | Replace mock implementation with eBird API call + fallback |
-| `lib/types/Bird.ts` | Add optional `locationName?: string` and `observationDate?: string` fields |
-| `components/BirdCard.tsx` | Show observation location/date when available (small text below description) |
-| `components/BirdList.tsx` | Add data source indicator ("Live data" vs "Sample data") |
-| `.env.local.example` | Create with `NEXT_PUBLIC_EBIRD_API_KEY=your_key_here` |
-| `README.md` | Update API section to reflect eBird is now integrated |
+| `app/api/birds/route.ts` | **New file** — Next.js Route Handler that reads `EBIRD_API_KEY` from `process.env`, calls eBird, deduplicates, and returns mapped `Bird[]` JSON with an `isLiveData` flag |
+| `lib/api/birdClient.ts` | Replace mock implementation: call `/api/birds?lat=...&lng=...` instead of returning hardcoded data. Fall back to mock data on error |
+| `lib/types/Bird.ts` | Add optional fields: `locationName?: string`, `observationDate?: string` |
+| `components/BirdCard.tsx` | Show observation location and date below the description when `locationName` or `observationDate` are present |
+| `components/BirdList.tsx` | Add a small data source indicator below the heading (e.g. "Live data from eBird" vs "Sample data") via an `isLiveData` prop |
+| `app/page.tsx` | Pass `isLiveData` flag through to `BirdList` |
+| `.env.local.example` | Create with `EBIRD_API_KEY=your_key_here` (no `NEXT_PUBLIC_` prefix) |
+| `README.md` | Update API section: eBird is now live, document `.env.local` setup with `EBIRD_API_KEY` |
 
 ## What NOT to Change
 
 - `postcodeClient.ts` — geocoding works fine as-is
 - `locationClient.ts` — already uses live OpenStreetMap data
-- `page.tsx` — the search flow and state management don't need changes
 - `next.config.ts` — no new image domains needed (eBird doesn't serve images)
-- No new dependencies needed — using native `fetch`
+- `.gitignore` — `.env*` is already ignored
+- No new npm dependencies needed — using native `fetch` on both client and server

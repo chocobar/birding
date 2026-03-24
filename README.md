@@ -123,9 +123,43 @@ Replace mock bird data with [eBird API 2.0](https://documenter.getpostman.com/vi
 
 ## Data Sources & Attribution
 
-- **Postcode Data**: [Postcodes.io](https://postcodes.io) (Open Government License)
-- **Location Data**: [OpenStreetMap](https://www.openstreetmap.org) (ODbL)
-- **Bird Images**: [Unsplash](https://unsplash.com) (Free to use)
+This project uses data from multiple sources. We are committed to proper attribution and license compliance.
+
+### Current Data Sources
+
+- **Postcode Data**: [Postcodes.io](https://postcodes.io) 
+  - License: Open Government License (OGL) v3.0
+  - Contains OS data © Crown copyright
+  - No API key required
+  
+- **Location Data**: [OpenStreetMap](https://www.openstreetmap.org)
+  - License: Open Database License (ODbL) 1.0
+  - © OpenStreetMap contributors
+  - No API key required
+  
+- **Bird Images**: [Unsplash](https://unsplash.com)
+  - License: Unsplash License
+  - Free to use, attribution appreciated
+  - No API key required
+
+### Compliance
+
+All data sources are properly attributed in the application footer and we comply with all license requirements. For complete details on:
+- License terms and obligations
+- Attribution requirements
+- API usage limits
+- Future eBird API integration plans
+
+Please see **[DATA_ATTRIBUTION.md](DATA_ATTRIBUTION.md)** for comprehensive licensing information.
+
+### No API Keys Required (Currently)
+
+The app currently works with **no API keys** needed! All data sources have free, open APIs:
+- ✅ Postcodes.io - Free, no registration
+- ✅ OpenStreetMap Overpass API - Free, no registration  
+- ✅ Unsplash - Hotlinking allowed, no key needed
+
+**For production use with eBird data**, you would need to register for a free eBird API key.
 
 ## Browser Support
 

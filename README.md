@@ -36,7 +36,7 @@ A Next.js web application that helps users discover common birds and nearby bird
 1. Clone the repository:
 ```bash
 git clone git@github.com:chocobar/birding.git
-cd birding-3
+cd birding
 ```
 
 2. Install dependencies:
@@ -84,7 +84,7 @@ The app can automatically detect your location using your browser's geolocation 
 ## Project Structure
 
 ```
-birding-3/
+birding/
 ├── app/
 │   ├── api/
 │   │   └── birds/
@@ -287,7 +287,7 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) for:
 **Quick start for contributors:**
 ```bash
 git clone git@github.com:chocobar/birding.git
-cd birding-3
+cd birding
 npm install
 npm run dev
 ```

@@ -36,9 +36,9 @@
 
 - [x] Update footer attribution to include Wikipedia/Wikimedia Commons as image source
 - [x] Verify all images render correctly for mock data (15 UK birds) and eBird live data path
-- [~] Test responsive layout at 375px (mobile), 768px (tablet), 1024px+ (desktop)
-- [~] Verify accessibility: colour contrast ratios meet WCAG AA, keyboard navigation works, screen reader labels intact
-- [~] Run `npm run build` to confirm no build errors
+- [x] Test responsive layout at 375px (mobile), 768px (tablet), 1024px+ (desktop)
+- [x] Verify accessibility: colour contrast ratios meet WCAG AA, keyboard navigation works, screen reader labels intact
+- [x] Run `npm run build` to confirm no build errors
 
 ## Learnings / Gotchas
 

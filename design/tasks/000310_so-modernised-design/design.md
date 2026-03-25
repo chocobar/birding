@@ -131,3 +131,40 @@ components/
 | Wikipedia common name doesn't match eBird name | Try `commonName` first, then `scientificName` as fallback search |
 | Design changes break mobile layout | Test at 375px, 768px, 1024px widths; keep existing responsive breakpoints |
 | Next.js 16 `next/image` config for Wikipedia domains | Add `upload.wikimedia.org` to `images.remotePatterns` in `next.config.ts` |
+
+## Implementation Notes
+
+### Approach & Order of Changes
+
+1. Started with `next.config.ts` (add Wikimedia domain) and the new `/api/bird-image/route.ts` — get the data pipeline working first
+2. Updated `globals.css` with colour tokens and `layout.tsx` with Inter font — establishes the design system
+3. Updated `page.tsx` (header, hero, footer) — sets the overall page chrome
+4. Updated all components in one pass — `PostcodeSearch`, `BirdCard`, `BirdList`, `LocationCard`, `LocationList`
+5. Polish pass — accessibility fix (underlined links), build verification, responsive testing
+
+### Key Learnings
+
+- **Wikimedia 429 rate limiting via `next/image`**: The biggest gotcha. `next/image` acts as a server-side proxy that fetches and optimizes remote images. When 12 bird cards all trigger fetches simultaneously, Wikimedia rate-limits the server. **Fix**: Add `unoptimized={resolvedImageUrl.includes('wikimedia.org')}` prop so the browser fetches Wikimedia images directly, bypassing the Next.js image optimization proxy. This is fine since Wikimedia already serves optimized images at the requested size.
+
+- **Wikipedia name matching works well**: All 15 UK common bird names resolved correctly. The API route tries three strategies: (1) common name as-is, (2) scientific name fallback, (3) append "(bird)" for disambiguation. Strategy 1 worked for all tested species. The `(bird)` disambiguator would help for generic names like "Wren" or "Robin" that might hit disambiguation pages.
+
+- **Next.js 16 font API change**: Uses `className` directly on `<html>` element, not the `variable` CSS custom property approach from older versions. The old code used `Geist({ variable: "--font-geist-sans" })` — the new pattern is `Inter({ subsets: ["latin"] })` with `inter.className`.
+
+- **Unsplash URLs in mock data are stale**: Several hardcoded Unsplash URLs return 404 (photos removed/expired). Wikipedia images fix this organically since the `BirdCard` always fetches from Wikipedia and replaces whatever `imageUrl` was provided in the mock data.
+
+- **CSS custom properties with Tailwind v4**: Colour tokens defined as `--brand-green: #2d6a4f` in `:root` and wired into Tailwind via `@theme inline { --color-brand-green: var(--brand-green); }`. Then used as `bg-[var(--brand-green)]` in components. The `@theme inline` block is already established in this codebase's `globals.css`.
+
+- **Tailwind v4 arbitrary values with CSS vars**: Use `bg-[var(--warm-sand)]` syntax. Opacity modifiers like `bg-[var(--brand-green)]/10` work but can be unreliable — safer to use pre-defined opacity tokens or hardcoded rgba values for critical UI.
+
+### Lighthouse Results
+
+- Accessibility: 96 (1 issue was footer links relying on colour alone — fixed with underlines)
+- Best Practices: 100
+- SEO: 100
+
+### What Future Agents Should Know
+
+- This codebase is **Tailwind-only** — no component library, no CSS modules. All styling via utility classes.
+- The `BirdCard` component does its own image fetching via `useEffect` — it's self-contained, not controlled by the parent.
+- The Wikipedia image cache lives in the Node.js process memory (`Map` in `route.ts`). It resets on server restart. Fine for a hobby app.
+- The `next/image` `unoptimized` prop is critical for Wikimedia URLs — removing it will cause 429 errors.

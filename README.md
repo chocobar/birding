@@ -86,6 +86,9 @@ The app can automatically detect your location using your browser's geolocation 
 ```
 birding-3/
 ├── app/
+│   ├── api/
+│   │   └── birds/
+│   │       └── route.ts    # eBird API proxy (server-side, protects API key)
 │   ├── layout.tsx          # Root layout with metadata
 │   ├── page.tsx            # Main home page
 │   └── globals.css         # Global styles
@@ -99,7 +102,7 @@ birding-3/
 ├── lib/
 │   ├── api/
 │   │   ├── postcodeClient.ts   # Postcodes.io integration
-│   │   ├── birdClient.ts       # Bird data (mock/eBird)
+│   │   ├── birdClient.ts       # Bird data (eBird live + mock fallback)
 │   │   └── locationClient.ts   # OpenStreetMap integration
 │   ├── types/
 │   │   ├── Bird.ts
@@ -113,18 +116,31 @@ birding-3/
 
 ## API Integration
 
-### Current APIs (V1)
+### Current APIs
 
-- **Postcodes.io**: Free, no authentication required
-- **OpenStreetMap Overpass API**: Free, no authentication required
-- **Mock Bird Data**: 15 common UK birds with images from Unsplash
+- **Postcodes.io**: Free, no authentication required — UK postcode geocoding
+- **OpenStreetMap Overpass API**: Free, no authentication required — nearby location data
+- **[eBird API 2.0](https://documenter.getpostman.com/view/664302/S1ENwy59)**: Live bird observation data — requires a free API key
+- **Fallback Bird Data**: 15 common UK birds with images from Unsplash (used when eBird is unavailable)
 
-### Future Enhancement
+### eBird API Setup
 
-Replace mock bird data with [eBird API 2.0](https://documenter.getpostman.com/view/664302/S1ENwy59):
-1. Get API key from https://ebird.org/api/keygen
-2. Add to `.env.local`: `NEXT_PUBLIC_EBIRD_API_KEY=your_key`
-3. Update `lib/api/birdClient.ts` to use real eBird data
+The app fetches real bird sighting data from eBird. The API key is kept **server-side only** (never exposed to the browser) via a Next.js API route proxy.
+
+1. Get a free API key from https://ebird.org/api/keygen
+2. Copy the example env file:
+   ```bash
+   cp .env.local.example .env.local
+   ```
+3. Add your key to `.env.local`:
+   ```
+   EBIRD_API_KEY=your_key_here
+   ```
+4. Restart the dev server (`npm run dev`)
+
+> **Security note:** The variable is named `EBIRD_API_KEY` (no `NEXT_PUBLIC_` prefix) so that Next.js does **not** bundle it into client-side JavaScript. All eBird requests are proxied through `/api/birds` on the server.
+
+If `EBIRD_API_KEY` is not set, the app gracefully falls back to sample bird data.
 
 ## Data Sources & Attribution
 
@@ -160,14 +176,12 @@ All data sources are properly attributed in the application footer and we comply
 
 Please see **[DATA_ATTRIBUTION.md](DATA_ATTRIBUTION.md)** for comprehensive licensing information.
 
-### No API Keys Required (Currently)
+### API Keys
 
-The app currently works with **no API keys** needed! All data sources have free, open APIs:
 - ✅ Postcodes.io - Free, no registration (UK only currently)
 - ✅ OpenStreetMap Overpass API - Free, no registration (global coverage)
 - ✅ Unsplash - Hotlinking allowed, no key needed
-
-**For production use with eBird data**, you would need to register for a free eBird API key.
+- 🔑 **eBird API** - Free, requires registration at https://ebird.org/api/keygen. Set `EBIRD_API_KEY` in `.env.local`. The app works without it (falls back to sample data).
 
 ### Expanding Beyond the UK
 

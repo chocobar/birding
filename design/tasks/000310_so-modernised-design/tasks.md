@@ -2,12 +2,12 @@
 
 ## Phase 1: Bird Image API
 
-- [ ] Add `upload.wikimedia.org` to `images.remotePatterns` in `next.config.ts`
-- [ ] Create `app/api/bird-image/route.ts` — server-side proxy that takes `?name=European+Robin`, queries Wikipedia REST API (`/api/rest_v1/page/summary/{title}`), returns `{ imageUrl, attribution }` with in-memory cache (simple `Map`)
-- [ ] Handle fallback: try `commonName` first (spaces replaced with underscores), then `scientificName` if first lookup fails
-- [ ] Update `BirdCard.tsx` to fetch image from `/api/bird-image?name={commonName}` when `imageUrl` is missing (eBird live data case) — use `useEffect` + local state, non-blocking
-- [ ] Keep existing Unsplash URLs in mock data as secondary fallback; Wikipedia image takes priority when available
-- [ ] Show gradient placeholder with bird icon while image is loading or if all sources fail
+- [~] Add `upload.wikimedia.org` to `images.remotePatterns` in `next.config.ts`
+- [~] Create `app/api/bird-image/route.ts` — server-side proxy that takes `?name=European+Robin`, queries Wikipedia REST API (`/api/rest_v1/page/summary/{title}`), returns `{ imageUrl, attribution }` with in-memory cache (simple `Map`)
+- [~] Handle fallback: try `commonName` first (spaces replaced with underscores), then `scientificName` if first lookup fails
+- [~] Update `BirdCard.tsx` to fetch image from `/api/bird-image?name={commonName}` when `imageUrl` is missing (eBird live data case) — use `useEffect` + local state, non-blocking
+- [~] Keep existing Unsplash URLs in mock data as secondary fallback; Wikipedia image takes priority when available
+- [~] Show gradient placeholder with bird icon while image is loading or if all sources fail
 
 ## Phase 2: Design Tokens & Typography
 

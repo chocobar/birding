@@ -35,7 +35,7 @@ A Next.js web application that helps users discover common birds and nearby bird
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone git@github.com:chocobar/birding.git
 cd birding-3
 ```
 
@@ -286,7 +286,7 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) for:
 
 **Quick start for contributors:**
 ```bash
-git clone https://github.com/YOUR-USERNAME/birding-3.git
+git clone git@github.com:chocobar/birding.git
 cd birding-3
 npm install
 npm run dev

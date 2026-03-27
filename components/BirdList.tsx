@@ -21,13 +21,13 @@ interface BirdListProps {
 
 function SkeletonCard() {
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden animate-pulse">
-      <div className="w-full h-48 bg-gray-300" />
+    <div className="bg-[var(--warm-sand)] rounded-xl border border-[var(--border-light)] overflow-hidden animate-pulse">
+      <div className="w-full h-52 bg-[var(--warm-cream)]" />
       <div className="p-4">
-        <div className="h-6 bg-gray-300 rounded w-3/4 mb-2" />
-        <div className="h-4 bg-gray-200 rounded w-1/2 mb-3" />
-        <div className="h-4 bg-gray-200 rounded w-full mb-2" />
-        <div className="h-4 bg-gray-200 rounded w-5/6" />
+        <div className="h-5 bg-[var(--border-light)] rounded-lg w-3/4 mb-2" />
+        <div className="h-4 bg-[var(--border-light)]/60 rounded-lg w-1/2 mb-3" />
+        <div className="h-4 bg-[var(--border-light)]/60 rounded-lg w-full mb-2" />
+        <div className="h-4 bg-[var(--border-light)]/60 rounded-lg w-5/6" />
       </div>
     </div>
   );
@@ -50,11 +50,11 @@ export default function BirdList({ birds, isLoading = false, isLiveData }: BirdL
     return (
       <section className="w-full py-12 text-center" aria-label="No birds found">
         <div className="max-w-md mx-auto">
-          <Bird className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-700 mb-2">
+          <Bird className="w-14 h-14 text-[var(--brand-green-light)] mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-2">
             No birds found
           </h3>
-          <p className="text-gray-600">
+          <p className="text-[var(--text-secondary)]">
             No bird data available for this area. Try a different postcode.
           </p>
         </div>
@@ -64,17 +64,24 @@ export default function BirdList({ birds, isLoading = false, isLiveData }: BirdL
 
   return (
     <section className="w-full" aria-label="Bird results">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">
           {isLiveData ? 'Recent Bird Sightings' : 'Common Birds in Your Area'}
         </h2>
-        <p className="text-gray-600 mt-1">
+        <p className="text-[var(--text-secondary)] mt-1">
           {birds.length} species {isLiveData ? 'recently observed near this location' : 'frequently observed in this location'}
         </p>
         {isLiveData !== undefined && (
-          <p className={`mt-1 text-xs font-medium ${isLiveData ? 'text-green-600' : 'text-amber-600'}`}>
-            {isLiveData ? '● Live data from eBird' : '● Sample data (eBird unavailable)'}
-          </p>
+          <span
+            className={`mt-2 inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${
+              isLiveData
+                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                : 'bg-amber-50 text-amber-700 border border-amber-200'
+            }`}
+          >
+            <span className={`w-1.5 h-1.5 rounded-full ${isLiveData ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+            {isLiveData ? 'Live data from eBird' : 'Sample data (eBird unavailable)'}
+          </span>
         )}
       </div>
 

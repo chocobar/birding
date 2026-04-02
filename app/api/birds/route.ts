@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
       lat: lat.toString(),
       lng: lng.toString(),
       dist: '8', // ~5 miles in km
-      maxResults: '50', // fetch more to have enough after dedup
+      maxResults: '20', // fetch enough for dedup, display up to 12
       back: '14', // last 14 days
     });
 

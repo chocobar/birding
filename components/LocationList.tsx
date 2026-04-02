@@ -1,7 +1,10 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import LocationCard from './LocationCard';
-import { MapPin } from 'lucide-react';
+import { MapPin, ChevronDown } from 'lucide-react';
+
+const PAGE_SIZE = 5;
 
 interface LocationListProps {
   locations: Array<{
@@ -33,6 +36,12 @@ function SkeletonCard() {
 }
 
 export default function LocationList({ locations, isLoading = false, postcode }: LocationListProps) {
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [locations]);
+
   if (isLoading) {
     return (
       <section className="w-full" aria-label="Loading location results">
@@ -42,7 +51,7 @@ export default function LocationList({ locations, isLoading = false, postcode }:
           </h2>
         </div>
         <div className="space-y-3">
-          {Array.from({ length: 5 }).map((_, index) => (
+          {Array.from({ length: PAGE_SIZE }).map((_, index) => (
             <SkeletonCard key={index} />
           ))}
         </div>
@@ -66,6 +75,9 @@ export default function LocationList({ locations, isLoading = false, postcode }:
     );
   }
 
+  const visibleLocations = locations.slice(0, visibleCount);
+  const hasMore = visibleCount < locations.length;
+
   return (
     <section className="w-full" aria-label="Nearby birding locations">
       <div className="mb-8">
@@ -79,10 +91,30 @@ export default function LocationList({ locations, isLoading = false, postcode }:
       </div>
 
       <div className="space-y-3">
-        {locations.map((location) => (
-          <LocationCard key={location.id} location={location} />
+        {visibleLocations.map((location, index) => (
+          <div
+            key={location.id}
+            className={index >= PAGE_SIZE ? 'animate-fade-in-up' : ''}
+          >
+            <LocationCard location={location} />
+          </div>
         ))}
       </div>
+
+      {hasMore && (
+        <div className="flex flex-col items-center mt-6 gap-1">
+          <button
+            onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
+            className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-medium text-[var(--brand-green)] bg-[var(--warm-sand)] border border-[var(--border-light)] rounded-full hover:bg-[var(--brand-green)] hover:text-white hover:border-[var(--brand-green)] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--brand-green)] focus:ring-offset-2"
+          >
+            Show more locations
+            <ChevronDown className="w-4 h-4" />
+          </button>
+          <p className="text-xs text-[var(--text-secondary)]">
+            Showing {visibleLocations.length} of {locations.length}
+          </p>
+        </div>
+      )}
     </section>
   );
 }

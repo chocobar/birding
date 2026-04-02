@@ -1,23 +1,29 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import BirdCard from './BirdCard';
-import { Bird } from 'lucide-react';
+import { Bird, ChevronDown } from 'lucide-react';
+
+interface BirdData {
+  id: string;
+  commonName: string;
+  scientificName: string;
+  imageUrl?: string;
+  description?: string;
+  conservationStatus?: string;
+  frequency?: number;
+  locationName?: string;
+  observationDate?: string;
+}
 
 interface BirdListProps {
-  birds: Array<{
-    id: string;
-    commonName: string;
-    scientificName: string;
-    imageUrl?: string;
-    description?: string;
-    conservationStatus?: string;
-    frequency?: number;
-    locationName?: string;
-    observationDate?: string;
-  }>;
+  birds: BirdData[];
   isLoading?: boolean;
   isLiveData?: boolean;
 }
+
+/** How many birds to show per page */
+const PAGE_SIZE = 6;
 
 function SkeletonCard() {
   return (
@@ -33,12 +39,72 @@ function SkeletonCard() {
   );
 }
 
+/**
+ * Fetch image URLs for a list of birds in a single batch request.
+ */
+async function fetchBirdImages(
+  birds: BirdData[]
+): Promise<Record<string, string | null>> {
+  if (birds.length === 0) return {};
+
+  try {
+    const payload = birds.map((b) => ({
+      name: b.commonName,
+      scientificName: b.scientificName,
+    }));
+
+    const res = await fetch('/api/bird-images', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ birds: payload }),
+    });
+
+    if (!res.ok) return {};
+
+    const data: {
+      images: Record<string, { imageUrl: string | null; attribution: string | null }>;
+    } = await res.json();
+
+    // Flatten to name → imageUrl map
+    const map: Record<string, string | null> = {};
+    for (const [name, info] of Object.entries(data.images)) {
+      map[name] = info.imageUrl;
+    }
+    return map;
+  } catch {
+    return {};
+  }
+}
+
 export default function BirdList({ birds, isLoading = false, isLiveData }: BirdListProps) {
+  const [imageMap, setImageMap] = useState<Record<string, string | null>>({});
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
+  // Batch-fetch images whenever the bird list changes
+  useEffect(() => {
+    if (!birds || birds.length === 0) return;
+
+    let cancelled = false;
+
+    fetchBirdImages(birds).then((map) => {
+      if (!cancelled) setImageMap(map);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [birds]);
+
+  // Reset visible count when bird list changes (new search)
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [birds]);
+
   if (isLoading) {
     return (
       <section className="w-full" aria-label="Loading bird results">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {Array.from({ length: 6 }).map((_, index) => (
+          {Array.from({ length: PAGE_SIZE }).map((_, index) => (
             <SkeletonCard key={index} />
           ))}
         </div>
@@ -61,6 +127,9 @@ export default function BirdList({ birds, isLoading = false, isLiveData }: BirdL
       </section>
     );
   }
+
+  const visibleBirds = birds.slice(0, visibleCount);
+  const hasMore = visibleCount < birds.length;
 
   return (
     <section className="w-full" aria-label="Bird results">
@@ -86,10 +155,33 @@ export default function BirdList({ birds, isLoading = false, isLiveData }: BirdL
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {birds.map((bird) => (
-          <BirdCard key={bird.id} bird={bird} />
+        {visibleBirds.map((bird, index) => (
+          <div
+            key={bird.id}
+            className={index >= PAGE_SIZE ? 'animate-fade-in-up' : ''}
+          >
+            <BirdCard
+              bird={bird}
+              resolvedImageUrl={imageMap[bird.commonName] ?? undefined}
+            />
+          </div>
         ))}
       </div>
+
+      {hasMore && (
+        <div className="mt-8 text-center">
+          <button
+            onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
+            className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-medium text-[var(--brand-green)] bg-[var(--warm-sand)] border border-[var(--border-light)] rounded-full hover:bg-[var(--brand-green)] hover:text-white hover:border-[var(--brand-green)] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--brand-green)] focus:ring-offset-2"
+          >
+            Show more birds
+            <ChevronDown className="w-4 h-4" />
+          </button>
+          <p className="mt-2 text-xs text-[var(--text-secondary)]">
+            Showing {visibleBirds.length} of {birds.length}
+          </p>
+        </div>
+      )}
     </section>
   );
 }

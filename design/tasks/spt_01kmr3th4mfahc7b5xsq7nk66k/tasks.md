@@ -16,15 +16,15 @@
 
 ## Add pagination to location results
 
-- [~] Update `LocationList.tsx` to initially show 5 locations with a "Show more" button that reveals the rest
+- [x] Update `LocationList.tsx` to initially show 5 locations with a "Show more" button that reveals the rest
 
 ## Use React Query for caching
 
-- [ ] Set up a `QueryClientProvider` in `app/layout.tsx` (the `@tanstack/react-query` dependency already exists but is unused)
-- [ ] Convert the manual `handleSearch` fetch logic in `page.tsx` to use `useQuery` hooks for birds and locations, keyed by postcode — this gives automatic caching so re-searching the same postcode is instant
-- [ ] Convert the batch bird-image fetch to a `useQuery` call keyed by the list of bird names
+- [x] Set up a `QueryClientProvider` in `app/layout.tsx` (the `@tanstack/react-query` dependency already exists but is unused)
+- [x] Convert the manual `handleSearch` fetch logic in `page.tsx` to use `useQuery` hooks for birds and locations, keyed by postcode — this gives automatic caching so re-searching the same postcode is instant
+- [x] Convert the batch bird-image fetch to a `useQuery` call keyed by the list of bird names
 
 ## Loading UX improvements
 
-- [ ] Show bird cards with skeleton placeholders progressively as data arrives (locations and birds can appear independently since they already use separate loading states)
-- [ ] Add a subtle fade-in animation when paginated results append
+- [x] Show bird cards with skeleton placeholders progressively as data arrives (locations and birds can appear independently since they already use separate loading states)
+- [~] Add a subtle fade-in animation when paginated results append

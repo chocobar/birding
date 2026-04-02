@@ -2,9 +2,9 @@
 
 ## Batch bird image fetching
 
-- [ ] Create a new `/api/bird-images` (plural) batch endpoint in `app/api/bird-images/route.ts` that accepts a JSON body with an array of `{ name, scientificName }` objects and returns all image URLs in one response, reusing the existing Wikipedia lookup + cache logic from the single-image route
-- [ ] Update `BirdCard.tsx` to remove the per-card `useEffect` that individually fetches `/api/bird-image`; instead accept an optional `resolvedImageUrl` prop passed down from the parent
-- [ ] Update `BirdList.tsx` to call the batch endpoint once when `birds` changes, then pass resolved image URLs down to each `BirdCard`
+- [~] Create a new `/api/bird-images` (plural) batch endpoint in `app/api/bird-images/route.ts` that accepts a JSON body with an array of `{ name, scientificName }` objects and returns all image URLs in one response, reusing the existing Wikipedia lookup + cache logic from the single-image route
+- [~] Update `BirdCard.tsx` to remove the per-card `useEffect` that individually fetches `/api/bird-image`; instead accept an optional `resolvedImageUrl` prop passed down from the parent
+- [~] Update `BirdList.tsx` to call the batch endpoint once when `birds` changes, then pass resolved image URLs down to each `BirdCard`
 
 ## Reduce eBird over-fetching
 

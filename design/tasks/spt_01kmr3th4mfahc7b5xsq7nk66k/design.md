@@ -68,3 +68,32 @@ The app already has skeleton loaders. With React Query, loading states become mo
 - **Infinite scroll** — "Show more" button is simpler and more appropriate for this data size.
 - **Redis/persistent caching** — in-memory cache + React Query is sufficient for this app's scale.
 - **Optimising the Overpass query** — it returns in reasonable time and results are capped at 10.
+
+## Implementation Notes
+
+### Files created
+- `lib/api/wikiImageLookup.ts` — Extracted shared Wikipedia image lookup logic (cache + 3-attempt resolution) from the single-image route. Both `/api/bird-image` (GET, single) and `/api/bird-images` (POST, batch) reuse this.
+- `app/api/bird-images/route.ts` — New batch endpoint. Accepts `{ birds: [{ name, scientificName }] }`, returns `{ images: { [name]: { imageUrl, attribution } } }`. Uses `Promise.allSettled` for concurrent lookups. Caps at 20 birds per request.
+- `components/Providers.tsx` — `'use client'` wrapper that creates a `QueryClient` with 5-min stale time and wraps children in `QueryClientProvider`.
+- `lib/hooks/useBirdSearch.ts` — `useBirdSearch(lat, lng)` and `useLocationSearch(lat, lng)` hooks using `useQuery`, keyed by coordinates, enabled only when coords are non-null.
+
+### Files modified
+- `app/api/bird-image/route.ts` — Simplified to 6 lines of logic, delegates to `lookupBirdImage()` from shared utility.
+- `app/api/birds/route.ts` — Changed `maxResults` from `'50'` to `'20'`.
+- `app/layout.tsx` — Wrapped `{children}` with `<Providers>` for React Query context.
+- `app/page.tsx` — Replaced manual `useState`-based fetch logic with React Query hooks. Geocoding remains imperative (sets `coords` state), which triggers `useBirdSearch` and `useLocationSearch` automatically. Re-searching the same postcode is now instant from cache.
+- `components/BirdCard.tsx` — Removed the per-card `useEffect` that fetched `/api/bird-image`. Now accepts `resolvedImageUrl` prop from parent.
+- `components/BirdList.tsx` — Fetches all bird images via single batch POST to `/api/bird-images` when birds change. Shows 6 birds initially with "Show more" button (client-side pagination). Applies `animate-fade-in-up` to newly revealed cards.
+- `components/LocationList.tsx` — Shows 5 locations initially with "Show more" button. Same fade-in animation pattern.
+- `app/globals.css` — Added `@keyframes fade-in-up` and `.animate-fade-in-up` utility class.
+
+### Patterns discovered
+- This project uses a `'use client'` top-level page with client-side data fetching (no SSR/RSC for the main page). All API calls go through Next.js API routes as proxies.
+- `@tanstack/react-query` v5 was already in `package.json` but completely unused — all fetching was manual `fetch()` + `useState`. The `gcTime` option replaces the old v4 `cacheTime`.
+- The `imageCache` Map in the Wikipedia lookup module persists across requests in the same server process (Node.js module-level state). This means the batch endpoint benefits from the cache even across different user searches.
+- Bird pagination is purely client-side (slice of 12-15 results). Server-side pagination of the eBird API was unnecessary for this data volume.
+
+### Gotchas
+- Next.js 16 has breaking changes from training data — the `AGENTS.md` warns to check `node_modules/next/dist/docs/` before writing code. In practice the App Router API routes and `next/server` imports worked as expected.
+- The `BirdList` batch image fetch uses a `useEffect` rather than React Query because the image data depends on the bird list (which itself comes from React Query). Nesting queries would add complexity for minimal gain since the server-side `imageCache` already handles deduplication.
+- The `Cannot find module 'next/server'` diagnostic is a pre-existing IDE issue in this project — it doesn't affect the build.

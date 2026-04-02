@@ -27,4 +27,4 @@
 ## Loading UX improvements
 
 - [x] Show bird cards with skeleton placeholders progressively as data arrives (locations and birds can appear independently since they already use separate loading states)
-- [~] Add a subtle fade-in animation when paginated results append
+- [x] Add a subtle fade-in animation when paginated results append

@@ -8,3 +8,6 @@
 - [x] Import Leaflet CSS (either in the map component or via a link tag in the modal) so tiles and markers render correctly.
 - [x] Verify mobile responsiveness — map modal should be near full-screen on small viewports (~90vw × 80vh on desktop).
 - [x] Manual test: search a postcode, click "View on map" on a location card, confirm marker is pinned at the correct spot, pan/zoom works, and modal dismisses cleanly.
+- [~] Pass `lat`/`lng` through the birds API route (`app/api/birds/route.ts`) — eBird returns them but `BirdResponse` currently drops them.
+- [ ] Add `latitude`/`longitude` to the `Bird` type (`lib/types/Bird.ts`) and the bird client (`lib/api/birdClient.ts`).
+- [ ] Update `BirdCard.tsx` to display coordinates in the location snippet: `📍 Smug Oak Lane, Colney Street, England, GB (51.709, -0.336)` and make it clickable to open the map modal.

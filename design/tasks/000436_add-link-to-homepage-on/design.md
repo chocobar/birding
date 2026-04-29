@@ -51,3 +51,12 @@ Would require lifting a reset function or passing an `onReset` callback. More co
 
 - **None significant.** This is a minimal, low-risk change. Navigating to `/` in a single-page Next.js app resets component state cleanly.
 - If a user middle-clicks the header, it opens a fresh tab at `/` — expected and correct behavior.
+
+## Implementation Notes
+
+- **ESLint enforces `next/link`:** The codebase has the `@next/next/no-html-link-for-pages` ESLint rule enabled. Using a plain `<a href="/">` causes a lint error. Used `import Link from 'next/link'` and `<Link href="/">` instead — this was not in the original plan but is the correct approach for Next.js.
+- **Next.js `<Link>` renders as `<a>` internally:** In Next.js 13+, `<Link>` renders a standard `<a>` tag directly (no child `<a>` needed). This means all native link behaviors (middle-click, right-click → open in new tab, keyboard Tab/Enter) work out of the box.
+- **Only one file changed:** `app/page.tsx` — replaced the `<div className="flex items-center gap-3">` wrapper around the header icon + title with `<Link href="/" className="flex items-center gap-3 ...">`. Added `import Link from 'next/link'` at the top.
+- **Styling classes added to the Link:** `no-underline text-white hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-white/50 rounded-xl` — keeps white text, adds subtle opacity hover effect, and provides a visible focus ring for keyboard users.
+- **No new components or files created.** The change is 3 lines of diff.
+- **Build and lint pass cleanly** with zero errors.

@@ -65,3 +65,13 @@ That's it — one file. The `@theme inline` block and all component references f
 - All colour usage goes through CSS custom properties — excellent separation. No grep for hardcoded hex values needed in components.
 - Some components mix `var(--token)` inline styles with Tailwind utility classes (`bg-[var(--warm-sand)]`). Both resolve from the same `:root` variables, so updating globals.css covers everything.
 - The `body` selector in globals.css sets `background` and `color` from `--background` and `--foreground`, which are aliases for `--warm-cream` and `--text-primary`.
+
+## Implementation Notes
+
+- **Single file changed**: `app/globals.css` — updated all 10 `:root` custom property values. No other files needed editing.
+- **`@theme inline` block unchanged**: It references CSS variables by name (`var(--brand-green)` etc.), so the new hex values flow through automatically. No mapping changes needed.
+- **WCAG AA verified programmatically**: Ran a Node.js contrast ratio calculator against all key fg/bg combinations. All pass AA (lowest ratio: 5.27:1 for white-on-green buttons, well above the 4.5:1 threshold).
+- **Semantic badges unaffected**: Conservation status badges (`emerald`, `amber`, `red`, `orange`) and location type badges (`sky`, `teal`, `green`, `amber`) use Tailwind's built-in colour palette, not our custom properties. They render correctly on the new white/near-white backgrounds — actually look cleaner without the old warm cream tint.
+- **Gotcha**: The CSS comment was updated from "nature-inspired palette" to "snappy palette inspired by All About Birds" to document the design intent for future maintainers.
+- **No dark mode**: This codebase has no dark mode toggle or `prefers-color-scheme` media query, so a single `:root` block is sufficient.
+- **Before/after screenshots**: Saved in `screenshots/` folder — `01-current-app-homepage.png` (before) and `03-homepage-after.png` (after) for visual comparison.

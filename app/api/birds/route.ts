@@ -19,6 +19,8 @@ interface BirdResponse {
   description: string;
   locationName: string;
   observationDate: string;
+  latitude: number;
+  longitude: number;
 }
 
 export async function GET(request: NextRequest) {
@@ -121,6 +123,8 @@ export async function GET(request: NextRequest) {
           description: `Observed at ${obs.locName} on ${dateStr} (${count})`,
           locationName: obs.locName,
           observationDate: obs.obsDt,
+          latitude: obs.lat,
+          longitude: obs.lng,
         };
       });
 

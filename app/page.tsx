@@ -5,70 +5,50 @@ import PostcodeSearch from '@/components/PostcodeSearch';
 import BirdList from '@/components/BirdList';
 import LocationList from '@/components/LocationList';
 import { geocodePostcode } from '@/lib/api/postcodeClient';
-import { getBirdsForLocation } from '@/lib/api/birdClient';
-import { getNearbyLocations } from '@/lib/api/locationClient';
+import { useBirdSearch, useLocationSearch } from '@/lib/hooks/useBirdSearch';
 import { Bird as BirdIcon, Binoculars, MapPin, Feather } from 'lucide-react';
 
-interface SearchState {
-  postcode: string;
-  birds: any[];
-  locations: any[];
-  isLoadingBirds: boolean;
-  isLoadingLocations: boolean;
-  isLiveData: boolean;
-  error: string | null;
+interface Coords {
+  latitude: number;
+  longitude: number;
 }
 
 export default function Home() {
-  const [searchState, setSearchState] = useState<SearchState>({
-    postcode: '',
-    birds: [],
-    locations: [],
-    isLoadingBirds: false,
-    isLoadingLocations: false,
-    isLiveData: false,
-    error: null,
-  });
+  const [postcode, setPostcode] = useState('');
+  const [coords, setCoords] = useState<Coords | null>(null);
+  const [geocodeError, setGeocodeError] = useState<string | null>(null);
+  const [isGeocoding, setIsGeocoding] = useState(false);
 
-  const handleSearch = async (postcode: string) => {
-    setSearchState(prev => ({
-      ...prev,
-      postcode,
-      isLoadingBirds: true,
-      isLoadingLocations: true,
-      error: null,
-    }));
+  const birdQuery = useBirdSearch(coords?.latitude ?? null, coords?.longitude ?? null);
+  const locationQuery = useLocationSearch(coords?.latitude ?? null, coords?.longitude ?? null);
+
+  const handleSearch = async (searchPostcode: string) => {
+    setPostcode(searchPostcode);
+    setGeocodeError(null);
+    setCoords(null);
+    setIsGeocoding(true);
 
     try {
-      // Step 1: Geocode the postcode
-      const postcodeData = await geocodePostcode(postcode);
-
-      // Step 2: Fetch birds and locations in parallel
-      const [birdResult, locations] = await Promise.all([
-        getBirdsForLocation(postcodeData.latitude, postcodeData.longitude, 5),
-        getNearbyLocations(postcodeData.latitude, postcodeData.longitude, 5),
-      ]);
-
-      setSearchState(prev => ({
-        ...prev,
-        birds: birdResult.birds,
-        locations,
-        isLoadingBirds: false,
-        isLoadingLocations: false,
-        isLiveData: birdResult.isLiveData,
-      }));
+      const postcodeData = await geocodePostcode(searchPostcode);
+      setCoords({ latitude: postcodeData.latitude, longitude: postcodeData.longitude });
     } catch (error) {
-      console.error('Search error:', error);
-      setSearchState(prev => ({
-        ...prev,
-        isLoadingBirds: false,
-        isLoadingLocations: false,
-        error: error instanceof Error ? error.message : 'An error occurred',
-      }));
+      setGeocodeError(error instanceof Error ? error.message : 'An error occurred');
+    } finally {
+      setIsGeocoding(false);
     }
   };
 
-  const hasSearched = searchState.postcode !== '';
+  const isLoadingBirds = isGeocoding || birdQuery.isLoading;
+  const isLoadingLocations = isGeocoding || locationQuery.isLoading;
+  const isLoading = isLoadingBirds || isLoadingLocations;
+  const error = geocodeError
+    || (birdQuery.error ? String(birdQuery.error) : null)
+    || (locationQuery.error ? String(locationQuery.error) : null);
+  const hasSearched = postcode !== '';
+
+  const birds = birdQuery.data?.birds ?? [];
+  const isLiveData = birdQuery.data?.isLiveData ?? false;
+  const locations = locationQuery.data ?? [];
 
   return (
     <div className="min-h-screen bg-[var(--warm-cream)]">
@@ -97,34 +77,34 @@ export default function Home() {
         <section className="py-10 sm:py-14">
           <PostcodeSearch
             onSearch={handleSearch}
-            isLoading={searchState.isLoadingBirds || searchState.isLoadingLocations}
+            isLoading={isLoading}
           />
         </section>
 
         {/* Error Message */}
-        {searchState.error && (
+        {error && (
           <div className="mb-8 p-4 bg-red-50 border border-red-200 rounded-xl">
             <p className="text-red-800 text-center">
-              <strong>Error:</strong> {searchState.error}
+              <strong>Error:</strong> {error}
             </p>
           </div>
         )}
 
         {/* Results Section */}
-        {hasSearched && !searchState.error && (
+        {hasSearched && !error && (
           <div className="space-y-14 pb-16">
             {/* Birds Section */}
             <BirdList
-              birds={searchState.birds}
-              isLoading={searchState.isLoadingBirds}
-              isLiveData={searchState.isLiveData}
+              birds={birds}
+              isLoading={isLoadingBirds}
+              isLiveData={isLiveData}
             />
 
             {/* Locations Section */}
             <LocationList
-              locations={searchState.locations}
-              isLoading={searchState.isLoadingLocations}
-              postcode={searchState.postcode}
+              locations={locations}
+              isLoading={isLoadingLocations}
+              postcode={postcode}
             />
           </div>
         )}

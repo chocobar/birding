@@ -72,3 +72,14 @@ The link should feel like a natural part of the card without dominating it:
 | eBird species page doesn't exist for a code | eBird shows a graceful "not found" page; unlikely since codes come from their own API |
 | Wikipedia article missing for a scientific name | Wikipedia redirects or shows search results; acceptable for fallback data |
 | Link clutters small mobile cards | Keep link compact (single line, small text); it adds ~24px of height |
+
+## Implementation Notes
+
+- Only two files needed changes: `components/BirdCard.tsx` and `components/BirdList.tsx`. No API, type, or page changes.
+- The `isLiveData` prop was already flowing from `page.tsx` → `BirdList`. We just needed to thread it one level deeper into `BirdCard`.
+- The eBird API route (`/api/birds/route.ts`) already maps `speciesCode` to `id`, so the eBird species URL (`https://ebird.org/species/{id}`) works out of the box.
+- For mock/fallback birds, the `id` is a human-readable slug (e.g. `robin`) which is NOT a valid eBird species code — this is why we conditionally switch to Wikipedia using the scientific name.
+- Used `ExternalLink` from `lucide-react` (already a project dependency) — consistent with other icons in the app.
+- The link includes `focus:ring-2 focus:ring-[var(--brand-green)] focus:ring-offset-2 rounded` for keyboard focus visibility, matching the project's WCAG 2.1 AA accessibility commitment.
+- Build verified clean with `npx next build` — no TypeScript errors introduced.
+- Gotcha: `node_modules` were not pre-installed; had to run `npm install` before building. Also needed `sudo chown -R 1000:1000 /home/retro/.npm` to fix npm permissions.

@@ -7,5 +7,5 @@
 - [x] Render a "Learn more on {sourceName}" link at the bottom of the card content `<div className="p-4">`, with `ExternalLink` icon, `target="_blank"`, `rel="noopener noreferrer"`, and `aria-label="Learn more about {bird.commonName} on {sourceName}"`
 - [x] Style the link: `text-sm`, `text-[var(--brand-green)]`, hover underline, `ExternalLink` icon at `w-3.5 h-3.5`
 - [x] Pass `isLiveData` prop from `BirdList.tsx` down to each `<BirdCard>` instance (value already available as a prop on `BirdList`)
-- [~] Manually test with both live eBird data and fallback mock data to verify correct URLs
-- [~] Verify keyboard navigation (Tab to link, Enter to activate) and screen reader announcement
+- [x] Manually test with both live eBird data and fallback mock data to verify correct URLs
+- [x] Verify keyboard navigation (Tab to link, Enter to activate) and screen reader announcement

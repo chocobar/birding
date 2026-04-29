@@ -1,6 +1,6 @@
 # Implementation Tasks
 
-- [ ] Install dependencies: `leaflet`, `react-leaflet`, and `@types/leaflet` (devDependency)
+- [~] Install dependencies: `leaflet`, `react-leaflet`, and `@types/leaflet` (devDependency)
 - [ ] Create `components/LocationMap.tsx` — client-only Leaflet map component with `MapContainer`, `TileLayer` (OpenStreetMap), `Marker`, and `Popup` showing location name/type/distance. Fix the default marker icon path issue.
 - [ ] Create `components/MapModal.tsx` — modal overlay that wraps `LocationMap`, with backdrop, close button, Escape key handling, and body scroll lock. Dynamically import with `next/dynamic` (`ssr: false`) to avoid SSR issues with Leaflet.
 - [ ] Modify `components/LocationCard.tsx` — add `latitude` and `longitude` to `LocationCardProps`, add a "View on map" button (using the existing `MapPin` icon), and manage modal open/close state.

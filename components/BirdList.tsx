@@ -163,6 +163,7 @@ export default function BirdList({ birds, isLoading = false, isLiveData }: BirdL
             <BirdCard
               bird={bird}
               resolvedImageUrl={imageMap[bird.commonName] ?? undefined}
+              isLiveData={isLiveData}
             />
           </div>
         ))}

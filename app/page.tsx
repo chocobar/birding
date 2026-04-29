@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import PostcodeSearch from '@/components/PostcodeSearch';
 import BirdList from '@/components/BirdList';
 import LocationList from '@/components/LocationList';
@@ -55,7 +56,7 @@ export default function Home() {
       {/* Header */}
       <header className="bg-[var(--accent-teal)] text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
-          <a href="/" className="flex items-center gap-3 no-underline text-white hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-white/50 rounded-xl">
+          <Link href="/" className="flex items-center gap-3 no-underline text-white hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-white/50 rounded-xl">
             <div className="w-10 h-10 bg-white/15 backdrop-blur-sm rounded-xl flex items-center justify-center">
               <Feather className="w-5 h-5 text-[var(--brand-green-light)]" />
             </div>
@@ -67,7 +68,7 @@ export default function Home() {
                 Find birds and birding spots near you
               </p>
             </div>
-          </a>
+          </Link>
         </div>
       </header>
 

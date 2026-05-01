@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
-import { Bird } from 'lucide-react';
+import { Bird, ExternalLink } from 'lucide-react';
 
 const MapModal = dynamic(() => import('./MapModal'), { ssr: false });
 
@@ -22,13 +22,20 @@ interface BirdCardProps {
     longitude?: number;
   };
   resolvedImageUrl?: string | null;
+  isLiveData?: boolean;
 }
 
-export default function BirdCard({ bird, resolvedImageUrl: externalImageUrl }: BirdCardProps) {
+export default function BirdCard({ bird, resolvedImageUrl: externalImageUrl, isLiveData }: BirdCardProps) {
   // Use externally-resolved image URL (from batch fetch), fall back to bird.imageUrl
   const displayImageUrl = externalImageUrl ?? bird.imageUrl ?? null;
   const [imageError, setImageError] = useState(false);
   const [isMapOpen, setIsMapOpen] = useState(false);
+
+  // Build outbound link: eBird species page for live data, Wikipedia for mock/fallback
+  const learnMoreUrl = isLiveData
+    ? `https://ebird.org/species/${bird.id}`
+    : `https://en.wikipedia.org/wiki/${bird.scientificName.replace(/ /g, '_')}`;
+  const sourceName = isLiveData ? 'eBird' : 'Wikipedia';
 
   const conservationColors: Record<string, string> = {
     LC: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
@@ -139,6 +146,18 @@ export default function BirdCard({ bird, resolvedImageUrl: externalImageUrl }: B
             </div>
           </div>
         )}
+
+        {/* Learn more link */}
+        <a
+          href={learnMoreUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`Learn more about ${bird.commonName} on ${sourceName}`}
+          className="mt-3 inline-flex items-center gap-1.5 text-sm text-[var(--brand-green)] hover:underline focus:outline-none focus:ring-2 focus:ring-[var(--brand-green)] focus:ring-offset-2 rounded"
+        >
+          Learn more on {sourceName}
+          <ExternalLink className="w-3.5 h-3.5" />
+        </a>
       </div>
     </article>
     {isMapOpen && bird.latitude != null && bird.longitude != null && (

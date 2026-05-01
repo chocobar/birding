@@ -1,23 +1,23 @@
 @import "tailwindcss";
 
 :root {
-  /* Brand colours — nature-inspired palette */
-  --brand-green: #2d6a4f;
-  --brand-green-light: #95d5b2;
-  --brand-green-dark: #1b4332;
-  --accent-amber: #e9c46a;
-  --accent-teal: #264653;
+  /* Brand colours — snappy palette inspired by All About Birds */
+  --brand-green: #2b7a4b;
+  --brand-green-light: #6fce97;
+  --brand-green-dark: #1a5c35;
+  --accent-amber: #e8453c;
+  --accent-teal: #1a1a2e;
 
   /* Backgrounds */
-  --warm-cream: #fefae0;
-  --warm-sand: #f5f0e1;
+  --warm-cream: #ffffff;
+  --warm-sand: #f7f7f8;
 
   /* Text */
-  --text-primary: #1b1b1b;
-  --text-secondary: #5c5c5c;
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
 
   /* Borders */
-  --border-light: #e8e2d4;
+  --border-light: #e5e7eb;
 
   /* Legacy compat */
   --background: var(--warm-cream);

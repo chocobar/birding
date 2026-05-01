@@ -9,4 +9,6 @@ export interface Bird {
   season?: 'year-round' | 'summer' | 'winter' | 'passage';
   locationName?: string; // eBird: where the bird was observed
   observationDate?: string; // eBird: when the bird was observed
+  latitude?: number;
+  longitude?: number;
 }

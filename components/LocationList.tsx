@@ -11,6 +11,8 @@ interface LocationListProps {
     id: string;
     name: string;
     type: 'water' | 'woodland' | 'park' | 'nature_reserve' | 'trail';
+    latitude: number;
+    longitude: number;
     distance: number;
     description?: string;
     tags?: string[];

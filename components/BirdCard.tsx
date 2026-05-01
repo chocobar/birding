@@ -2,7 +2,10 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import dynamic from 'next/dynamic';
 import { Bird, ExternalLink } from 'lucide-react';
+
+const MapModal = dynamic(() => import('./MapModal'), { ssr: false });
 
 interface BirdCardProps {
   bird: {
@@ -15,6 +18,8 @@ interface BirdCardProps {
     frequency?: number;
     locationName?: string;
     observationDate?: string;
+    latitude?: number;
+    longitude?: number;
   };
   resolvedImageUrl?: string | null;
   isLiveData?: boolean;
@@ -24,6 +29,7 @@ export default function BirdCard({ bird, resolvedImageUrl: externalImageUrl, isL
   // Use externally-resolved image URL (from batch fetch), fall back to bird.imageUrl
   const displayImageUrl = externalImageUrl ?? bird.imageUrl ?? null;
   const [imageError, setImageError] = useState(false);
+  const [isMapOpen, setIsMapOpen] = useState(false);
 
   // Build outbound link: eBird species page for live data, Wikipedia for mock/fallback
   const learnMoreUrl = isLiveData
@@ -50,6 +56,7 @@ export default function BirdCard({ bird, resolvedImageUrl: externalImageUrl, isL
   const showPlaceholder = !displayImageUrl || imageError;
 
   return (
+    <>
     <article className="group bg-[var(--warm-sand)] rounded-xl border border-[var(--border-light)] overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
       {/* Image */}
       <div className="relative w-full h-52 bg-[var(--warm-cream)] overflow-hidden">
@@ -102,7 +109,17 @@ export default function BirdCard({ bird, resolvedImageUrl: externalImageUrl, isL
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-[var(--text-secondary)] mb-3">
             {bird.locationName && (
               <span className="flex items-center gap-1">
-                📍 {bird.locationName}
+                {bird.latitude != null && bird.longitude != null ? (
+                  <button
+                    onClick={() => setIsMapOpen(true)}
+                    className="inline-flex items-center gap-1 text-[var(--brand-green)] hover:underline focus:outline-none"
+                    aria-label={`View ${bird.locationName} on map`}
+                  >
+                    📍 {bird.locationName} ({bird.latitude.toFixed(3)}, {bird.longitude.toFixed(3)})
+                  </button>
+                ) : (
+                  <>📍 {bird.locationName}</>
+                )}
               </span>
             )}
             {bird.observationDate && (
@@ -143,5 +160,16 @@ export default function BirdCard({ bird, resolvedImageUrl: externalImageUrl, isL
         </a>
       </div>
     </article>
+    {isMapOpen && bird.latitude != null && bird.longitude != null && (
+      <MapModal
+        name={bird.locationName ?? bird.commonName}
+        type="Bird Sighting"
+        distance={0}
+        latitude={bird.latitude}
+        longitude={bird.longitude}
+        onClose={() => setIsMapOpen(false)}
+      />
+    )}
+    </>
   );
 }

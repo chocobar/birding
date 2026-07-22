@@ -6,24 +6,30 @@ A Next.js web application that helps users discover common birds and nearby bird
 
 ## Features
 
-- 🐦 **Bird Discovery**: Find the most common bird species in your area
+- 🐦 **Bird Discovery**: Find the most common bird species in your area with images from Wikipedia/Wikimedia Commons
 - 📍 **Location Finder**: Discover nearby parks, woodlands, nature reserves, and walking trails
 - 🔍 **Location Search**: Search by postcode or address (UK postcodes currently supported)
 - 📍 **Auto-Location**: Click a button to automatically detect your location
+- 🗺️ **Interactive Map**: View birding locations on an interactive Leaflet.js map with markers and popups
+- 🔗 **Learn More**: Click outbound links on bird cards to learn more about each species
 - 🌍 **Global Vision**: Built for worldwide expansion (starting with UK)
 - 📱 **Responsive Design**: Works on mobile, tablet, and desktop
 - ♿ **Accessible**: WCAG 2.1 AA compliant with keyboard navigation and screen reader support
 
 ## Tech Stack
 
-- **Framework**: Next.js 14+ (App Router)
+- **Framework**: Next.js 16 (App Router)
 - **Language**: TypeScript
-- **Styling**: Tailwind CSS
+- **Styling**: Tailwind CSS v4
 - **Icons**: Lucide React
+- **Data Fetching**: TanStack React Query
+- **Maps**: Leaflet.js + React-Leaflet
 - **APIs**:
-  - [Postcodes.io](https://postcodes.io) - UK postcode geocoding
-  - [OpenStreetMap Overpass API](https://overpass-api.de) - Location data
-  - Mock bird data (to be replaced with eBird API)
+  - [Postcodes.io](https://postcodes.io) — UK postcode geocoding
+  - [OpenStreetMap Overpass API](https://overpass-api.de) — Location data
+  - [eBird API 2.0](https://documenter.getpostman.com/view/664302/S1ENwy59) — Live bird observation data
+  - [Wikimedia Commons](https://commons.wikimedia.org) — Bird images
+  - Mock bird data (fallback when eBird is unavailable)
 
 ## Getting Started
 
@@ -67,9 +73,10 @@ npm start
 
 1. Enter your location (currently supporting UK postcodes like "SW1A 1AA" or "M1 1AE")
    - **OR** click the 📍 location button to auto-detect your location
-2. View the list of common birds in your area
+2. View the list of common birds in your area, with images sourced from Wikipedia/Wikimedia Commons
 3. Explore nearby birding locations within a 5-mile radius
-4. Click on locations to see distance and type (woodland, water, park, etc.)
+4. Click on a location to open the interactive map and see it pinned
+5. Click **Learn more** on any bird card to open its species information
 
 **Note:** While the app is built for global use, UK postcodes are currently the primary supported format. International location support is planned for future releases.
 
@@ -81,37 +88,52 @@ The app can automatically detect your location using your browser's geolocation 
 - The app will find your nearest UK postcode and search automatically
 - Works on both desktop and mobile browsers
 
+### Interactive Map
+
+Click any birding location to open a full-screen modal map powered by Leaflet.js:
+- View all nearby locations as interactive markers
+- Click markers for location details (name, type, distance)
+- Pan and zoom to explore the surrounding area
+
 ## Project Structure
 
 ```
 birding/
 ├── app/
 │   ├── api/
-│   │   └── birds/
-│   │       └── route.ts    # eBird API proxy (server-side, protects API key)
-│   ├── layout.tsx          # Root layout with metadata
-│   ├── page.tsx            # Main home page
-│   └── globals.css         # Global styles
+│   │   ├── birds/route.ts         # eBird API proxy (server-side, protects API key)
+│   │   ├── bird-image/route.ts    # Single bird image proxy
+│   │   └── bird-images/route.ts   # Batch bird image proxy
+│   ├── layout.tsx                 # Root layout with metadata
+│   ├── page.tsx                   # Main home page
+│   └── globals.css                # Global styles
 ├── components/
-│   ├── PostcodeSearch.tsx  # Search input component
-│   ├── BirdCard.tsx        # Individual bird display
-│   ├── BirdList.tsx        # Bird grid with loading states
-│   ├── LocationCard.tsx    # Individual location display
-│   ├── LocationList.tsx    # Location list
-│   └── ErrorBoundary.tsx   # Error handling component
+│   ├── PostcodeSearch.tsx         # Search input component
+│   ├── BirdCard.tsx               # Individual bird display with Learn more link
+│   ├── BirdList.tsx               # Bird grid with loading states
+│   ├── LocationCard.tsx           # Individual location display
+│   ├── LocationList.tsx           # Location list
+│   ├── LocationMap.tsx            # Leaflet.js interactive map component
+│   ├── MapModal.tsx               # Full-screen map modal
+│   ├── ErrorBoundary.tsx          # Error handling component
+│   └── Providers.tsx              # React Query provider
 ├── lib/
 │   ├── api/
-│   │   ├── postcodeClient.ts   # Postcodes.io integration
-│   │   ├── birdClient.ts       # Bird data (eBird live + mock fallback)
-│   │   └── locationClient.ts   # OpenStreetMap integration
+│   │   ├── postcodeClient.ts      # Postcodes.io integration
+│   │   ├── birdClient.ts          # Bird data (eBird live + mock fallback)
+│   │   ├── locationClient.ts      # OpenStreetMap integration
+│   │   └── wikiImageLookup.ts     # Wikipedia/Wikimedia image resolver with caching
+│   ├── hooks/
+│   │   └── useBirdSearch.ts       # React Query hooks for bird & location search
 │   ├── types/
 │   │   ├── Bird.ts
 │   │   ├── Location.ts
-│   │   └── PostcodeResult.ts
+│   │   ├── PostcodeResult.ts
+│   │   └── index.ts               # Barrel exports
 │   └── utils/
-│       ├── postcodeValidator.ts  # UK postcode validation
-│       └── distanceCalculator.ts # Haversine distance formula
-└── public/                 # Static assets
+│       ├── postcodeValidator.ts    # UK postcode validation
+│       └── distanceCalculator.ts   # Haversine distance formula
+└── public/                        # Static assets
 ```
 
 ## API Integration
@@ -121,7 +143,8 @@ birding/
 - **Postcodes.io**: Free, no authentication required — UK postcode geocoding
 - **OpenStreetMap Overpass API**: Free, no authentication required — nearby location data
 - **[eBird API 2.0](https://documenter.getpostman.com/view/664302/S1ENwy59)**: Live bird observation data — requires a free API key
-- **Fallback Bird Data**: 15 common UK birds with images from Unsplash (used when eBird is unavailable)
+- **Wikimedia Commons**: Bird species images resolved via Wikipedia API — free, no authentication required
+- **Fallback Bird Data**: 15 common UK birds (used when eBird is unavailable)
 
 ### eBird API Setup
 
@@ -148,21 +171,21 @@ This project uses data from multiple sources. We are committed to proper attribu
 
 ### Current Data Sources
 
-- **Postcode Data (UK)**: [Postcodes.io](https://postcodes.io) 
+- **Postcode Data (UK)**: [Postcodes.io](https://postcodes.io)
   - License: Open Government License (OGL) v3.0
   - Contains OS data © Crown copyright
   - No API key required
   - Coverage: United Kingdom only (global geocoding APIs planned)
-  
+
 - **Location Data (Global)**: [OpenStreetMap](https://www.openstreetmap.org)
   - License: Open Database License (ODbL) 1.0
   - © OpenStreetMap contributors
   - No API key required
   - Coverage: Worldwide
-  
-- **Bird Images**: [Unsplash](https://unsplash.com)
-  - License: Unsplash License
-  - Free to use, attribution appreciated
+
+- **Bird Images**: [Wikimedia Commons](https://commons.wikimedia.org)
+  - License: Individual image licenses (CC-BY-SA, etc.)
+  - Attribution provided per image
   - No API key required
 
 ### Compliance
@@ -178,10 +201,10 @@ Please see **[DATA_ATTRIBUTION.md](DATA_ATTRIBUTION.md)** for comprehensive lice
 
 ### API Keys
 
-- ✅ Postcodes.io - Free, no registration (UK only currently)
-- ✅ OpenStreetMap Overpass API - Free, no registration (global coverage)
-- ✅ Unsplash - Hotlinking allowed, no key needed
-- 🔑 **eBird API** - Free, requires registration at https://ebird.org/api/keygen. Set `EBIRD_API_KEY` in `.env.local`. The app works without it (falls back to sample data).
+- ✅ Postcodes.io — Free, no registration (UK only currently)
+- ✅ OpenStreetMap Overpass API — Free, no registration (global coverage)
+- ✅ Wikimedia Commons — Free, no registration
+- 🔑 **eBird API** — Free, requires registration at https://ebird.org/api/keygen. Set `EBIRD_API_KEY` in `.env.local`. The app works without it (falls back to sample data).
 
 ### Expanding Beyond the UK
 
@@ -213,17 +236,16 @@ The app is architected for global use. Future enhancements will include:
 - Search results: < 2 seconds
 - Lazy-loaded images
 - Optimized bundle size
+- React Query caching for fast repeat visits
 
 ## Known Limitations
 
 - **UK-only**: Only supports UK postcodes
-- **Mock Bird Data**: V1 uses static bird data; real-time observations require eBird API integration
 - **OSM Coverage**: Some rural areas may have limited location data
 - **No Authentication**: No user accounts or saved searches in V1
 
 ## Future Enhancements
 
-- [ ] Interactive map view (Leaflet.js)
 - [ ] Seasonal bird migration patterns
 - [ ] User favorites (localStorage)
 - [ ] eBird hotspot integration
@@ -233,11 +255,23 @@ The app is architected for global use. Future enhancements will include:
 
 ## Contributing
 
-This is a prototype/hobby project. Contributions welcome!
+We welcome contributions! 🎉
 
-## License
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) for:
+- Code of conduct
+- Development setup
+- Coding standards
+- Pull request process
+- How to report bugs
+- How to suggest features
 
-MIT License - See LICENSE file for details
+**Quick start for contributors:**
+```bash
+git clone git@github.com:chocobar/birding.git
+cd birding
+npm install
+npm run dev
+```
 
 ## Deployment
 
@@ -259,10 +293,10 @@ The app works on any platform supporting Next.js:
 
 This project is licensed under terms similar to the Helix license. You can use this software for free for:
 
-- **Personal Use** - Individual, non-commercial use
-- **Educational Use** - Schools and universities
-- **Small Business Use** - Companies with < 250 employees and < $10M annual revenue
-- **Open Source Projects** - Non-commercial open source work
+- **Personal Use** — Individual, non-commercial use
+- **Educational Use** — Schools and universities
+- **Small Business Use** — Companies with < 250 employees and < $10M annual revenue
+- **Open Source Projects** — Non-commercial open source work
 
 For commercial use outside these terms, please see [LICENSE.md](LICENSE.md) for details.
 
@@ -271,26 +305,6 @@ For commercial use outside these terms, please see [LICENSE.md](LICENSE.md) for 
 - Redistribute commercially without permission
 
 See [LICENSE.md](LICENSE.md) for complete license terms.
-
-## Contributing
-
-We welcome contributions! 🎉
-
-Please read [CONTRIBUTING.md](CONTRIBUTING.md) for:
-- Code of conduct
-- Development setup
-- Coding standards
-- Pull request process
-- How to report bugs
-- How to suggest features
-
-**Quick start for contributors:**
-```bash
-git clone git@github.com:chocobar/birding.git
-cd birding
-npm install
-npm run dev
-```
 
 ## Contact
 

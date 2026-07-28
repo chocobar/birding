@@ -312,4 +312,6 @@ For questions or feedback, please open an issue on GitHub.
 
 ---
 
+Have fun exploring this repo
+
 Built with ❤️ for UK bird enthusiasts

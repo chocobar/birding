@@ -29,19 +29,19 @@ const locationIcons = {
 };
 
 const locationColors = {
-  water: 'bg-sky-50 text-sky-700 border border-sky-200',
-  woodland: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
-  park: 'bg-green-50 text-green-700 border border-green-200',
-  nature_reserve: 'bg-teal-50 text-teal-700 border border-teal-200',
-  trail: 'bg-amber-50 text-amber-700 border border-amber-200',
+  water: 'bg-sky-50 text-sky-700 border border-sky-200 dark:bg-sky-950/70 dark:text-sky-200 dark:border-sky-800',
+  woodland: 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/70 dark:text-emerald-200 dark:border-emerald-800',
+  park: 'bg-green-50 text-green-700 border border-green-200 dark:bg-green-950/70 dark:text-green-200 dark:border-green-800',
+  nature_reserve: 'bg-teal-50 text-teal-700 border border-teal-200 dark:bg-teal-950/70 dark:text-teal-200 dark:border-teal-800',
+  trail: 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/70 dark:text-amber-200 dark:border-amber-800',
 };
 
 const iconContainerColors = {
-  water: 'bg-sky-100 text-sky-600',
-  woodland: 'bg-emerald-100 text-emerald-600',
-  park: 'bg-green-100 text-green-600',
-  nature_reserve: 'bg-teal-100 text-teal-600',
-  trail: 'bg-amber-100 text-amber-600',
+  water: 'bg-sky-100 text-sky-600 dark:bg-sky-950 dark:text-sky-300',
+  woodland: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-300',
+  park: 'bg-green-100 text-green-600 dark:bg-green-950 dark:text-green-300',
+  nature_reserve: 'bg-teal-100 text-teal-600 dark:bg-teal-950 dark:text-teal-300',
+  trail: 'bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-300',
 };
 
 const locationTypeLabels = {

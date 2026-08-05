@@ -7,7 +7,7 @@ import BirdList from '@/components/BirdList';
 import LocationList from '@/components/LocationList';
 import { geocodePostcode } from '@/lib/api/postcodeClient';
 import { useBirdSearch, useLocationSearch } from '@/lib/hooks/useBirdSearch';
-import { Bird as BirdIcon, Binoculars, MapPin, Feather } from 'lucide-react';
+import { Bird as BirdIcon, Binoculars, MapPin, Feather, Moon, Sun } from 'lucide-react';
 
 interface Coords {
   latitude: number;
@@ -51,11 +51,16 @@ export default function Home() {
   const isLiveData = birdQuery.data?.isLiveData ?? false;
   const locations = locationQuery.data ?? [];
 
+  const toggleTheme = () => {
+    const isDark = document.documentElement.classList.toggle('dark');
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  };
+
   return (
     <div className="min-h-screen bg-[var(--warm-cream)]">
       {/* Header */}
       <header className="bg-[var(--accent-teal)] text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-3 no-underline text-white hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-white/50 rounded-xl">
             <div className="w-10 h-10 bg-white/15 backdrop-blur-sm rounded-xl flex items-center justify-center">
               <Feather className="w-5 h-5 text-[var(--brand-green-light)]" />
@@ -69,6 +74,16 @@ export default function Home() {
               </p>
             </div>
           </Link>
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/60"
+            aria-label="Toggle dark mode"
+            title="Toggle dark mode"
+          >
+            <Moon className="w-4 h-4 dark:hidden" />
+            <Sun className="hidden w-4 h-4 dark:block" />
+          </button>
         </div>
       </header>
 
@@ -84,8 +99,8 @@ export default function Home() {
 
         {/* Error Message */}
         {error && (
-          <div className="mb-8 p-4 bg-red-50 border border-red-200 rounded-xl">
-            <p className="text-red-800 text-center">
+          <div className="mb-8 p-4 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-xl">
+            <p className="text-red-800 dark:text-red-200 text-center">
               <strong>Error:</strong> {error}
             </p>
           </div>

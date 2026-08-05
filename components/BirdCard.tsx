@@ -38,11 +38,11 @@ export default function BirdCard({ bird, resolvedImageUrl: externalImageUrl, isL
   const sourceName = isLiveData ? 'eBird' : 'Wikipedia';
 
   const conservationColors: Record<string, string> = {
-    LC: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
-    NT: 'bg-amber-50 text-amber-700 border border-amber-200',
-    VU: 'bg-orange-50 text-orange-700 border border-orange-200',
-    EN: 'bg-red-50 text-red-700 border border-red-200',
-    CR: 'bg-red-100 text-red-800 border border-red-300',
+    LC: 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/70 dark:text-emerald-200 dark:border-emerald-800',
+    NT: 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/70 dark:text-amber-200 dark:border-amber-800',
+    VU: 'bg-orange-50 text-orange-700 border border-orange-200 dark:bg-orange-950/70 dark:text-orange-200 dark:border-orange-800',
+    EN: 'bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/70 dark:text-red-200 dark:border-red-800',
+    CR: 'bg-red-100 text-red-800 border border-red-300 dark:bg-red-950 dark:text-red-100 dark:border-red-700',
   };
 
   const conservationLabels: Record<string, string> = {

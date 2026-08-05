@@ -133,7 +133,7 @@ export default function PostcodeSearch({ onSearch, isLoading = false }: Postcode
               validationError
                 ? 'border-red-400 focus:ring-red-300'
                 : 'border-[var(--border-light)] focus:border-[var(--brand-green)] focus:ring-[var(--brand-green-light)]'
-            } ${isLoading ? 'bg-[var(--warm-sand)] cursor-not-allowed' : 'bg-white'}`}
+            } ${isLoading ? 'bg-[var(--warm-sand)] cursor-not-allowed' : 'bg-[var(--warm-cream)]'}`}
             aria-label="Location search"
             aria-invalid={!!validationError}
             aria-describedby={validationError ? 'postcode-error' : undefined}

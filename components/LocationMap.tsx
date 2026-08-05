@@ -38,11 +38,11 @@ export default function LocationMap({ latitude, longitude, name, typeLabel, dist
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       <Marker position={[latitude, longitude]}>
-        <Popup>
+        <Popup className="location-popup">
           <div className="text-sm">
             <strong className="block text-base mb-1">{name}</strong>
-            <span className="text-gray-600">{typeLabel}</span>
-            <span className="block text-gray-500 mt-0.5">{distanceText}</span>
+            <span className="text-[var(--text-secondary)]">{typeLabel}</span>
+            <span className="block text-[var(--text-secondary)] mt-0.5">{distanceText}</span>
           </div>
         </Popup>
       </Marker>

@@ -37,7 +37,7 @@ A Next.js web application that helps users discover common birds and nearby bird
 
 ### Prerequisites
 
-- Node.js 20.9+ (required by Next.js 16) and npm
+- Node.js 18+ and npm
 
 ### Installation
 

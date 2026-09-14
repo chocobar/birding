@@ -8,8 +8,10 @@ A Next.js web application that helps users discover common birds and nearby bird
 
 - 🐦 **Bird Discovery**: Find the most common bird species in your area with images from Wikipedia/Wikimedia Commons
 - 📍 **Location Finder**: Discover nearby parks, woodlands, nature reserves, and walking trails
+- 📍 **Clickable Bird Sightings**: Bird cards show the observation location and coordinates — click them to open the map pinned to the exact spot
 - 🔍 **Location Search**: Search by postcode or address (UK postcodes currently supported)
 - 📍 **Auto-Location**: Click a button to automatically detect your location
+- 🌙 **Dark Mode**: Toggle light/dark themes from the header — defaults to your system preference and remembers your choice
 - 🗺️ **Interactive Map**: View birding locations on an interactive Leaflet.js map with markers and popups
 - 🔗 **Learn More**: Click outbound links on bird cards to learn more about each species
 - 🌍 **Global Vision**: Built for worldwide expansion (starting with UK)
@@ -35,7 +37,7 @@ A Next.js web application that helps users discover common birds and nearby bird
 
 ### Prerequisites
 
-- Node.js 18+ and npm
+- Node.js 20.9+ (required by Next.js 16) and npm
 
 ### Installation
 
@@ -77,6 +79,7 @@ npm start
 3. Explore nearby birding locations within a 5-mile radius
 4. Click on a location to open the interactive map and see it pinned
 5. Click **Learn more** on any bird card to open its species information
+6. Click a bird's location (📍 name + coordinates) to see exactly where it was observed on the map
 
 **Note:** While the app is built for global use, UK postcodes are currently the primary supported format. International location support is planned for future releases.
 
@@ -94,6 +97,16 @@ Click any birding location to open a full-screen modal map powered by Leaflet.js
 - View all nearby locations as interactive markers
 - Click markers for location details (name, type, distance)
 - Pan and zoom to explore the surrounding area
+
+Bird sightings that include coordinates show them on the card (e.g. `📍 Richmond Park (51.442, -0.274)`), and clicking that text opens the same map pinned to the exact observation spot.
+
+### Dark Mode
+
+The app supports light and dark themes:
+- Click the sun/moon button in the header to toggle themes
+- On first visit, the theme follows your system preference (`prefers-color-scheme`)
+- Your choice is remembered between visits (stored in `localStorage`)
+- The theme is applied before the page renders, so there's no flash of the wrong theme
 
 ## Project Structure
 

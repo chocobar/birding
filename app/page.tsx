@@ -190,6 +190,9 @@ export default function Home() {
             Bird images from{' '}
             <a href="https://commons.wikimedia.org" target="_blank" rel="noopener noreferrer" className="text-[var(--brand-green)] underline decoration-[var(--brand-green-light)] hover:decoration-[var(--brand-green)]">Wikimedia Commons</a>
             {' · '}
+            Conservation status from{' '}
+            <a href="https://www.wikidata.org" target="_blank" rel="noopener noreferrer" className="text-[var(--brand-green)] underline decoration-[var(--brand-green-light)] hover:decoration-[var(--brand-green)]">Wikidata</a>
+            {' · '}
             UK postcodes currently supported
           </p>
         </div>

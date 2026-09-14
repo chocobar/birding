@@ -3,7 +3,11 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
-import { Bird, ExternalLink } from 'lucide-react';
+import { Bird, ExternalLink, Sparkles } from 'lucide-react';
+import {
+  CONSERVATION_STATUS_META,
+  parseConservationCode,
+} from '@/lib/utils/conservationStatus';
 
 const MapModal = dynamic(() => import('./MapModal'), { ssr: false });
 
@@ -37,21 +41,8 @@ export default function BirdCard({ bird, resolvedImageUrl: externalImageUrl, isL
     : `https://en.wikipedia.org/wiki/${bird.scientificName.replace(/ /g, '_')}`;
   const sourceName = isLiveData ? 'eBird' : 'Wikipedia';
 
-  const conservationColors: Record<string, string> = {
-    LC: 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/70 dark:text-emerald-200 dark:border-emerald-800',
-    NT: 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/70 dark:text-amber-200 dark:border-amber-800',
-    VU: 'bg-orange-50 text-orange-700 border border-orange-200 dark:bg-orange-950/70 dark:text-orange-200 dark:border-orange-800',
-    EN: 'bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/70 dark:text-red-200 dark:border-red-800',
-    CR: 'bg-red-100 text-red-800 border border-red-300 dark:bg-red-950 dark:text-red-100 dark:border-red-700',
-  };
-
-  const conservationLabels: Record<string, string> = {
-    LC: 'Least Concern',
-    NT: 'Near Threatened',
-    VU: 'Vulnerable',
-    EN: 'Endangered',
-    CR: 'Critically Endangered',
-  };
+  const statusCode = parseConservationCode(bird.conservationStatus);
+  const statusMeta = statusCode ? CONSERVATION_STATUS_META[statusCode] : null;
 
   const showPlaceholder = !displayImageUrl || imageError;
 
@@ -77,17 +68,16 @@ export default function BirdCard({ bird, resolvedImageUrl: externalImageUrl, isL
             <Bird className="w-14 h-14 text-[var(--brand-green)]/40" />
           </div>
         )}
-        {/* Conservation badge overlaid on image */}
-        {bird.conservationStatus &&
-          conservationColors[bird.conservationStatus] && (
-            <span
-              className={`absolute top-3 right-3 px-2 py-0.5 text-xs font-semibold rounded-full backdrop-blur-sm ${conservationColors[bird.conservationStatus]}`}
-              title={conservationLabels[bird.conservationStatus]}
-            >
-              {conservationLabels[bird.conservationStatus] ??
-                bird.conservationStatus}
-            </span>
-          )}
+        {/* Extinction status badge overlaid on image */}
+        {statusCode && statusMeta && (
+          <span
+            className={`absolute top-3 right-3 px-2 py-0.5 text-xs font-semibold rounded-full backdrop-blur-sm ${statusMeta.chipClassName}`}
+            title={`${statusMeta.label} — ${statusMeta.rarityNote}`}
+            aria-label={`IUCN status: ${statusMeta.label}`}
+          >
+            {statusMeta.label}
+          </span>
+        )}
       </div>
 
       {/* Content */}
@@ -103,6 +93,19 @@ export default function BirdCard({ bird, resolvedImageUrl: externalImageUrl, isL
           <p className="text-sm text-[var(--text-secondary)] line-clamp-2 mb-3">
             {bird.description}
           </p>
+        )}
+
+        {/* Rare-find callout for threatened / extinct species */}
+        {statusMeta?.rare && (
+          <div className="mb-3">
+            <span
+              className={`inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium rounded-md ${statusMeta.chipClassName}`}
+              title={`IUCN status: ${statusMeta.label}`}
+            >
+              <Sparkles className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
+              Rare find — {statusMeta.rarityNote}
+            </span>
+          </div>
         )}
 
         {(bird.locationName || bird.observationDate) && (

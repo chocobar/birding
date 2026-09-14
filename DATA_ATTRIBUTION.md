@@ -11,6 +11,7 @@ This document details all external data sources used by UK Birding Discovery, th
 | Postcodes.io | UK postcode geocoding | Open Government License (OGL) | ❌ No | ✅ Yes |
 | OpenStreetMap (Overpass API) | Location data (parks, trails, etc.) | ODbL 1.0 | ❌ No | ✅ Yes |
 | Unsplash | Bird photography | Unsplash License | ❌ No | ✅ Yes (per image) |
+| Wikidata (Wikimedia) | IUCN conservation / extinction status | CC0 1.0 | ❌ No | ❌ No (credited anyway) |
 | Mock Bird Data | Bird species information | Original content | N/A | ❌ No |
 
 ---
@@ -245,6 +246,42 @@ A project of the Cornell Lab of Ornithology
 
 ---
 
+## 5️⃣ Wikidata (Extinction Status)
+
+### What We Use
+- IUCN Red List conservation categories for bird species, read from Wikidata property **P141** ("IUCN conservation status")
+- Used to show each bird's extinction status (Least Concern → Extinct) and to flag threatened species as **rare finds**
+
+### API Endpoint
+```
+https://www.wikidata.org/w/api.php
+```
+(`wbsearchentities` to resolve a species, `wbgetclaims&property=P141` to read its status)
+
+### License: CC0 1.0 (Public Domain Dedication)
+
+**Key Terms:**
+- ✅ **Free to use** for any purpose, including commercial
+- ✅ **No API key required**
+- ✅ **No attribution legally required**
+- ✅ Data may be redistributed without restrictions
+
+### Our Compliance
+
+**Attribution (displayed in app footer):**
+```
+Conservation status from Wikidata
+```
+(Provided as a courtesy — CC0 does not require it. Underlying IUCN Red List assessments are © IUCN; we display only the factual category, which is not copyrightable.)
+
+### Usage Guidelines
+- ✅ Cache lookups in memory (implemented — both hits and misses are cached)
+- ✅ Send a descriptive `User-Agent` header (Wikimedia API etiquette)
+- ✅ Batch lookups with bounded concurrency
+- ❌ Don't exceed ~50 requests/second (well within limits: ≤20 birds per search)
+
+---
+
 ## 🎯 Current Attribution Display
 
 ### In App Footer (Currently Displayed)
@@ -268,6 +305,7 @@ Data sources:
 - [x] Postcodes.io - Basic attribution displayed
 - [x] OpenStreetMap - Basic attribution displayed
 - [x] Unsplash - Using within license terms
+- [x] Wikidata - CC0, credited in footer as a courtesy
 - [x] No API keys required for current data sources
 - [x] No rate limit violations
 - [x] Not creating derivative databases

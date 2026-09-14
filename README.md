@@ -7,6 +7,7 @@ A Next.js web application that helps users discover common birds and nearby bird
 ## Features
 
 - 🐦 **Bird Discovery**: Find the most common bird species in your area with images from Wikipedia/Wikimedia Commons
+- 🪶 **Extinction Status**: See each species' IUCN Red List category at a glance, with a "rare find" callout for threatened species (data via Wikidata)
 - 📍 **Location Finder**: Discover nearby parks, woodlands, nature reserves, and walking trails
 - 🔍 **Location Search**: Search by postcode or address (UK postcodes currently supported)
 - 📍 **Auto-Location**: Click a button to automatically detect your location
@@ -27,8 +28,9 @@ A Next.js web application that helps users discover common birds and nearby bird
 - **APIs**:
   - [Postcodes.io](https://postcodes.io) — UK postcode geocoding
   - [OpenStreetMap Overpass API](https://overpass-api.de) — Location data
-  - [eBird API 2.0](https://documenter.getpostman.com/view/664302/S1ENwy59) — Live bird observation data
-  - [Wikimedia Commons](https://commons.wikimedia.org) — Bird images
+- [eBird API 2.0](https://documenter.getpostman.com/view/664302/S1ENwy59) — Live bird observation data
+- [Wikidata](https://www.wikidata.org) — IUCN conservation / extinction status (property P141)
+- [Wikimedia Commons](https://commons.wikimedia.org) — Bird images
   - Mock bird data (fallback when eBird is unavailable)
 
 ## Getting Started
@@ -77,6 +79,7 @@ npm start
 3. Explore nearby birding locations within a 5-mile radius
 4. Click on a location to open the interactive map and see it pinned
 5. Click **Learn more** on any bird card to open its species information
+6. Check the **extinction status badge** on each bird card — species listed Near Threatened or rarer are flagged as **rare finds** (both on the card and in a summary chip above the results)
 
 **Note:** While the app is built for global use, UK postcodes are currently the primary supported format. International location support is planned for future releases.
 
@@ -103,7 +106,8 @@ birding/
 │   ├── api/
 │   │   ├── birds/route.ts         # eBird API proxy (server-side, protects API key)
 │   │   ├── bird-image/route.ts    # Single bird image proxy
-│   │   └── bird-images/route.ts   # Batch bird image proxy
+│   │   ├── bird-images/route.ts   # Batch bird image proxy
+│   │   └── bird-status/route.ts   # Batch IUCN conservation status proxy (Wikidata)
 │   ├── layout.tsx                 # Root layout with metadata
 │   ├── page.tsx                   # Main home page
 │   └── globals.css                # Global styles
@@ -121,6 +125,7 @@ birding/
 │   ├── api/
 │   │   ├── postcodeClient.ts      # Postcodes.io integration
 │   │   ├── birdClient.ts          # Bird data (eBird live + mock fallback)
+│   │   ├── conservationStatusLookup.ts  # IUCN status resolver (Wikidata, cached)
 │   │   ├── locationClient.ts      # OpenStreetMap integration
 │   │   └── wikiImageLookup.ts     # Wikipedia/Wikimedia image resolver with caching
 │   ├── hooks/
@@ -131,6 +136,7 @@ birding/
 │   │   ├── PostcodeResult.ts
 │   │   └── index.ts               # Barrel exports
 │   └── utils/
+│       ├── conservationStatus.ts    # IUCN status metadata & rare-find logic
 │       ├── postcodeValidator.ts    # UK postcode validation
 │       └── distanceCalculator.ts   # Haversine distance formula
 └── public/                        # Static assets
@@ -143,6 +149,7 @@ birding/
 - **Postcodes.io**: Free, no authentication required — UK postcode geocoding
 - **OpenStreetMap Overpass API**: Free, no authentication required — nearby location data
 - **[eBird API 2.0](https://documenter.getpostman.com/view/664302/S1ENwy59)**: Live bird observation data — requires a free API key
+- **Wikidata**: IUCN conservation / extinction status (property P141) — free, no authentication required
 - **Wikimedia Commons**: Bird species images resolved via Wikipedia API — free, no authentication required
 - **Fallback Bird Data**: 15 common UK birds (used when eBird is unavailable)
 
@@ -204,6 +211,7 @@ Please see **[DATA_ATTRIBUTION.md](DATA_ATTRIBUTION.md)** for comprehensive lice
 - ✅ Postcodes.io — Free, no registration (UK only currently)
 - ✅ OpenStreetMap Overpass API — Free, no registration (global coverage)
 - ✅ Wikimedia Commons — Free, no registration
+- ✅ Wikidata — Free, no registration (extinction status lookups)
 - 🔑 **eBird API** — Free, requires registration at https://ebird.org/api/keygen. Set `EBIRD_API_KEY` in `.env.local`. The app works without it (falls back to sample data).
 
 ### Expanding Beyond the UK

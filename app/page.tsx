@@ -7,7 +7,7 @@ import BirdList from '@/components/BirdList';
 import LocationList from '@/components/LocationList';
 import { geocodePostcode } from '@/lib/api/postcodeClient';
 import { useBirdSearch, useLocationSearch } from '@/lib/hooks/useBirdSearch';
-import { Bird as BirdIcon, Binoculars, MapPin, Feather, Moon, Sun } from 'lucide-react';
+import { Bird as BirdIcon, Binoculars, Gamepad2, MapPin, Feather, Moon, Sun } from 'lucide-react';
 
 interface Coords {
   latitude: number;
@@ -74,16 +74,26 @@ export default function Home() {
               </p>
             </div>
           </Link>
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/60"
-            aria-label="Toggle dark mode"
-            title="Toggle dark mode"
-          >
-            <Moon className="w-4 h-4 dark:hidden" />
-            <Sun className="hidden w-4 h-4 dark:block" />
-          </button>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/tetris"
+              className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/60"
+              aria-label="Play Tetris"
+              title="Play Tetris"
+            >
+              <Gamepad2 className="w-4 h-4" />
+            </Link>
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors focus:outline-none focus:ring-2 focus:ring-white/60"
+              aria-label="Toggle dark mode"
+              title="Toggle dark mode"
+            >
+              <Moon className="w-4 h-4 dark:hidden" />
+              <Sun className="hidden w-4 h-4 dark:block" />
+            </button>
+          </div>
         </div>
       </header>
 

@@ -47,6 +47,9 @@ export default function LocationSearch({ onSearch, isLoading = false }: Location
   }, []);
 
   const clearSuggestions = () => {
+    // Invalidate any in-flight suggestion request so it can't repopulate
+    // the dropdown after the user has dismissed or shortened the query.
+    requestSeqRef.current += 1;
     setSuggestions([]);
     setIsSuggestionsOpen(false);
     setActiveIndex(-1);
@@ -136,7 +139,7 @@ export default function LocationSearch({ onSearch, isLoading = false }: Location
           return;
         case 'Escape':
           e.preventDefault();
-          setIsSuggestionsOpen(false);
+          clearSuggestions();
           return;
         case 'Enter':
           if (activeIndex >= 0) {

@@ -91,7 +91,7 @@ birding-3/
 │   ├── layout.tsx         # Root layout
 │   └── page.tsx           # Home page
 ├── components/            # React components
-│   ├── PostcodeSearch.tsx
+│   ├── LocationSearch.tsx
 │   ├── BirdCard.tsx
 │   ├── BirdList.tsx
 │   ├── LocationCard.tsx

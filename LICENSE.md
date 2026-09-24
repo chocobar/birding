@@ -48,7 +48,7 @@ https://github.com/[your-username]/birding-3
 ## Data Sources
 
 This software integrates with third-party data sources:
-- **Postcodes.io** - UK postcode geocoding (Open Government License)
+- **Nominatim / OpenStreetMap** - Global geocoding (ODbL)
 - **OpenStreetMap** - Location data via Overpass API (ODbL)
 - **Unsplash** - Bird photography (Unsplash License)
 

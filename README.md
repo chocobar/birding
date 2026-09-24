@@ -2,17 +2,17 @@
 
 A Next.js web application that helps users discover common birds and nearby birding locations anywhere in the world.
 
-**Current Coverage:** UK postcodes (expanding to global locations soon)
+**Current Coverage:** Worldwide
 
 ## Features
 
 - 🐦 **Bird Discovery**: Find the most common bird species in your area with images from Wikipedia/Wikimedia Commons
 - 📍 **Location Finder**: Discover nearby parks, woodlands, nature reserves, and walking trails
-- 🔍 **Location Search**: Search by postcode or address (UK postcodes currently supported)
+- 🔍 **Location Search**: Search any place worldwide — city, region, or postcode — with autocomplete suggestions
 - 📍 **Auto-Location**: Click a button to automatically detect your location
 - 🗺️ **Interactive Map**: View birding locations on an interactive Leaflet.js map with markers and popups
 - 🔗 **Learn More**: Click outbound links on bird cards to learn more about each species
-- 🌍 **Global Vision**: Built for worldwide expansion (starting with UK)
+- 🌍 **Global Vision**: Search for birds anywhere in the world
 - 📱 **Responsive Design**: Works on mobile, tablet, and desktop
 - ♿ **Accessible**: WCAG 2.1 AA compliant with keyboard navigation and screen reader support
 
@@ -25,7 +25,7 @@ A Next.js web application that helps users discover common birds and nearby bird
 - **Data Fetching**: TanStack React Query
 - **Maps**: Leaflet.js + React-Leaflet
 - **APIs**:
-  - [Postcodes.io](https://postcodes.io) — UK postcode geocoding
+  - [OpenStreetMap Nominatim](https://nominatim.openstreetmap.org) — Global geocoding and search suggestions
   - [OpenStreetMap Overpass API](https://overpass-api.de) — Location data
   - [eBird API 2.0](https://documenter.getpostman.com/view/664302/S1ENwy59) — Live bird observation data
   - [Wikimedia Commons](https://commons.wikimedia.org) — Bird images
@@ -71,21 +71,22 @@ npm start
 
 ## Usage
 
-1. Enter your location (currently supporting UK postcodes like "SW1A 1AA" or "M1 1AE")
+1. Search for any location worldwide — city, region, or postcode (e.g. "Vellore, India", "Houston, TX", "SW1A 1AA")
+   - Autocomplete suggestions appear as you type
    - **OR** click the 📍 location button to auto-detect your location
 2. View the list of common birds in your area, with images sourced from Wikipedia/Wikimedia Commons
 3. Explore nearby birding locations within a 5-mile radius
 4. Click on a location to open the interactive map and see it pinned
 5. Click **Learn more** on any bird card to open its species information
 
-**Note:** While the app is built for global use, UK postcodes are currently the primary supported format. International location support is planned for future releases.
+**Note:** The app supports any location that can be geocoded via OpenStreetMap — cities, regions, addresses, and postcodes worldwide.
 
 ### Auto-Location Feature
 
 The app can automatically detect your location using your browser's geolocation API:
 - Click the green map pin (📍) button next to the search box
 - Allow location access when prompted by your browser
-- The app will find your nearest UK postcode and search automatically
+- The app uses your coordinates directly and shows the nearest place name
 - Works on both desktop and mobile browsers
 
 ### Interactive Map
@@ -102,13 +103,14 @@ birding/
 ├── app/
 │   ├── api/
 │   │   ├── birds/route.ts         # eBird API proxy (server-side, protects API key)
+│   │   ├── geocode/route.ts       # Nominatim geocoding proxy (User-Agent + rate throttle)
 │   │   ├── bird-image/route.ts    # Single bird image proxy
 │   │   └── bird-images/route.ts   # Batch bird image proxy
 │   ├── layout.tsx                 # Root layout with metadata
 │   ├── page.tsx                   # Main home page
 │   └── globals.css                # Global styles
 ├── components/
-│   ├── PostcodeSearch.tsx         # Search input component
+│   ├── LocationSearch.tsx         # Location search with autocomplete
 │   ├── BirdCard.tsx               # Individual bird display with Learn more link
 │   ├── BirdList.tsx               # Bird grid with loading states
 │   ├── LocationCard.tsx           # Individual location display
@@ -119,7 +121,7 @@ birding/
 │   └── Providers.tsx              # React Query provider
 ├── lib/
 │   ├── api/
-│   │   ├── postcodeClient.ts      # Postcodes.io integration
+│   │   ├── geocodeClient.ts       # Geocoding search + reverse geocoding (via /api/geocode)
 │   │   ├── birdClient.ts          # Bird data (eBird live + mock fallback)
 │   │   ├── locationClient.ts      # OpenStreetMap integration
 │   │   └── wikiImageLookup.ts     # Wikipedia/Wikimedia image resolver with caching
@@ -128,10 +130,9 @@ birding/
 │   ├── types/
 │   │   ├── Bird.ts
 │   │   ├── Location.ts
-│   │   ├── PostcodeResult.ts
+│   │   ├── GeocodedLocation.ts
 │   │   └── index.ts               # Barrel exports
 │   └── utils/
-│       ├── postcodeValidator.ts    # UK postcode validation
 │       └── distanceCalculator.ts   # Haversine distance formula
 └── public/                        # Static assets
 ```
@@ -140,7 +141,7 @@ birding/
 
 ### Current APIs
 
-- **Postcodes.io**: Free, no authentication required — UK postcode geocoding
+- **OpenStreetMap Nominatim**: Free, no authentication required — global geocoding and search suggestions
 - **OpenStreetMap Overpass API**: Free, no authentication required — nearby location data
 - **[eBird API 2.0](https://documenter.getpostman.com/view/664302/S1ENwy59)**: Live bird observation data — requires a free API key
 - **Wikimedia Commons**: Bird species images resolved via Wikipedia API — free, no authentication required
@@ -171,11 +172,12 @@ This project uses data from multiple sources. We are committed to proper attribu
 
 ### Current Data Sources
 
-- **Postcode Data (UK)**: [Postcodes.io](https://postcodes.io)
-  - License: Open Government License (OGL) v3.0
-  - Contains OS data © Crown copyright
+- **Geocoding (Global)**: [Nominatim](https://nominatim.openstreetmap.org) by OpenStreetMap
+  - License: Open Database License (ODbL) 1.0
+  - © OpenStreetMap contributors
   - No API key required
-  - Coverage: United Kingdom only (global geocoding APIs planned)
+  - Coverage: Worldwide (place names, addresses, postcodes)
+  - Usage policy: max 1 request/second — enforced via debounced autocomplete and a server-side proxy with identifying User-Agent
 
 - **Location Data (Global)**: [OpenStreetMap](https://www.openstreetmap.org)
   - License: Open Database License (ODbL) 1.0
@@ -201,18 +203,17 @@ Please see **[DATA_ATTRIBUTION.md](DATA_ATTRIBUTION.md)** for comprehensive lice
 
 ### API Keys
 
-- ✅ Postcodes.io — Free, no registration (UK only currently)
+- ✅ Nominatim — Free, no registration (worldwide, usage policy applies)
 - ✅ OpenStreetMap Overpass API — Free, no registration (global coverage)
 - ✅ Wikimedia Commons — Free, no registration
 - 🔑 **eBird API** — Free, requires registration at https://ebird.org/api/keygen. Set `EBIRD_API_KEY` in `.env.local`. The app works without it (falls back to sample data).
 
-### Expanding Beyond the UK
+### Geocoding Architecture
 
-The app is architected for global use. Future enhancements will include:
-- Google Geocoding API or similar for international addresses
-- Country-specific postcode/zip code formats
-- Regional bird data from eBird API
-- Multi-language support
+Location search is powered by OpenStreetMap Nominatim. Future enhancements may include:
+- Provider fallbacks (e.g., Photon) for higher autocomplete availability
+- Search result caching to reduce upstream calls
+- Multi-language place names
 
 ## Browser Support
 
@@ -240,7 +241,6 @@ The app is architected for global use. Future enhancements will include:
 
 ## Known Limitations
 
-- **UK-only**: Only supports UK postcodes
 - **OSM Coverage**: Some rural areas may have limited location data
 - **No Authentication**: No user accounts or saved searches in V1
 
@@ -312,4 +312,4 @@ For questions or feedback, please open an issue on GitHub.
 
 ---
 
-Built with ❤️ for UK bird enthusiasts
+Built with ❤️ for bird enthusiasts everywhere

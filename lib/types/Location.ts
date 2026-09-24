@@ -4,7 +4,7 @@ export interface Location {
   type: 'water' | 'woodland' | 'park' | 'nature_reserve' | 'trail';
   latitude: number;
   longitude: number;
-  distance: number; // Distance from search postcode in miles
+  distance: number; // Distance from the searched location in miles
   description?: string;
   amenities?: {
     parking?: boolean;

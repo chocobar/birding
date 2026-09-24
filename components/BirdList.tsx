@@ -121,7 +121,7 @@ export default function BirdList({ birds, isLoading = false, isLiveData }: BirdL
             No birds found
           </h3>
           <p className="text-[var(--text-secondary)]">
-            No bird data available for this area. Try a different postcode.
+            No bird data available for this area. Try a different location.
           </p>
         </div>
       </section>

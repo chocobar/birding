@@ -2,11 +2,11 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import PostcodeSearch from '@/components/PostcodeSearch';
+import LocationSearch from '@/components/LocationSearch';
 import BirdList from '@/components/BirdList';
 import LocationList from '@/components/LocationList';
-import { geocodePostcode } from '@/lib/api/postcodeClient';
 import { useBirdSearch, useLocationSearch } from '@/lib/hooks/useBirdSearch';
+import { GeocodedLocation } from '@/lib/types';
 import { Bird as BirdIcon, Binoculars, MapPin, Feather, Moon, Sun } from 'lucide-react';
 
 interface Coords {
@@ -15,37 +15,24 @@ interface Coords {
 }
 
 export default function Home() {
-  const [postcode, setPostcode] = useState('');
+  const [locationName, setLocationName] = useState('');
   const [coords, setCoords] = useState<Coords | null>(null);
-  const [geocodeError, setGeocodeError] = useState<string | null>(null);
-  const [isGeocoding, setIsGeocoding] = useState(false);
 
   const birdQuery = useBirdSearch(coords?.latitude ?? null, coords?.longitude ?? null);
   const locationQuery = useLocationSearch(coords?.latitude ?? null, coords?.longitude ?? null);
 
-  const handleSearch = async (searchPostcode: string) => {
-    setPostcode(searchPostcode);
-    setGeocodeError(null);
-    setCoords(null);
-    setIsGeocoding(true);
-
-    try {
-      const postcodeData = await geocodePostcode(searchPostcode);
-      setCoords({ latitude: postcodeData.latitude, longitude: postcodeData.longitude });
-    } catch (error) {
-      setGeocodeError(error instanceof Error ? error.message : 'An error occurred');
-    } finally {
-      setIsGeocoding(false);
-    }
+  const handleSearch = (location: GeocodedLocation) => {
+    setLocationName(location.displayName);
+    setCoords({ latitude: location.latitude, longitude: location.longitude });
   };
 
-  const isLoadingBirds = isGeocoding || birdQuery.isLoading;
-  const isLoadingLocations = isGeocoding || locationQuery.isLoading;
+  const isLoadingBirds = birdQuery.isLoading;
+  const isLoadingLocations = locationQuery.isLoading;
   const isLoading = isLoadingBirds || isLoadingLocations;
-  const error = geocodeError
-    || (birdQuery.error ? String(birdQuery.error) : null)
+  const error =
+    (birdQuery.error ? String(birdQuery.error) : null)
     || (locationQuery.error ? String(locationQuery.error) : null);
-  const hasSearched = postcode !== '';
+  const hasSearched = locationName !== '';
 
   const birds = birdQuery.data?.birds ?? [];
   const isLiveData = birdQuery.data?.isLiveData ?? false;
@@ -91,7 +78,7 @@ export default function Home() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Search Section */}
         <section className="py-10 sm:py-14">
-          <PostcodeSearch
+          <LocationSearch
             onSearch={handleSearch}
             isLoading={isLoading}
           />
@@ -120,7 +107,7 @@ export default function Home() {
             <LocationList
               locations={locations}
               isLoading={isLoadingLocations}
-              postcode={postcode}
+              postcode={locationName}
             />
           </div>
         )}
@@ -133,7 +120,7 @@ export default function Home() {
                 Discover the birds around you
               </h2>
               <p className="text-lg text-[var(--text-secondary)] max-w-xl mx-auto">
-                Enter your postcode to explore common species and find the best birdwatching spots nearby.
+                Search any location to explore common species and find the best birdwatching spots nearby.
               </p>
             </div>
 
@@ -182,15 +169,14 @@ export default function Home() {
       <footer className="border-t border-[var(--border-light)] mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
           <p className="text-center text-xs text-[var(--text-secondary)]">
-            Data from{' '}
-            <a href="https://postcodes.io" target="_blank" rel="noopener noreferrer" className="text-[var(--brand-green)] underline decoration-[var(--brand-green-light)] hover:decoration-[var(--brand-green)]">Postcodes.io</a>
-            {' · '}
+            Location data from{' '}
             <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="text-[var(--brand-green)] underline decoration-[var(--brand-green-light)] hover:decoration-[var(--brand-green)]">OpenStreetMap</a>
+            {' · '}
+            Geocoding by{' '}
+            <a href="https://nominatim.openstreetmap.org" target="_blank" rel="noopener noreferrer" className="text-[var(--brand-green)] underline decoration-[var(--brand-green-light)] hover:decoration-[var(--brand-green)]">Nominatim</a>
             {' · '}
             Bird images from{' '}
             <a href="https://commons.wikimedia.org" target="_blank" rel="noopener noreferrer" className="text-[var(--brand-green)] underline decoration-[var(--brand-green-light)] hover:decoration-[var(--brand-green)]">Wikimedia Commons</a>
-            {' · '}
-            UK postcodes currently supported
           </p>
         </div>
       </footer>

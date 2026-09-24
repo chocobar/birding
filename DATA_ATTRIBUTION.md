@@ -1,6 +1,6 @@
 # Data Attribution & Licensing Compliance
 
-This document details all external data sources used by UK Birding Discovery, their licenses, and our compliance obligations.
+This document details all external data sources used by Birding Discovery, their licenses, and our compliance obligations.
 
 ---
 
@@ -8,55 +8,49 @@ This document details all external data sources used by UK Birding Discovery, th
 
 | Data Source | Purpose | License | API Key Required | Attribution Required |
 |-------------|---------|---------|------------------|---------------------|
-| Postcodes.io | UK postcode geocoding | Open Government License (OGL) | ❌ No | ✅ Yes |
+| Nominatim (OpenStreetMap) | Global geocoding (search + reverse) | ODbL 1.0 | ❌ No | ✅ Yes |
 | OpenStreetMap (Overpass API) | Location data (parks, trails, etc.) | ODbL 1.0 | ❌ No | ✅ Yes |
 | Unsplash | Bird photography | Unsplash License | ❌ No | ✅ Yes (per image) |
 | Mock Bird Data | Bird species information | Original content | N/A | ❌ No |
 
 ---
 
-## 1️⃣ Postcodes.io
+## 1️⃣ Nominatim (OpenStreetMap Geocoding)
 
 ### What We Use
-- Postcode to latitude/longitude geocoding
-- Reverse geocoding (coordinates to postcode)
-- Postcode validation
+- Forward geocoding (place name/postcode → latitude/longitude)
+- Autocomplete search suggestions as the user types
+- Reverse geocoding (coordinates → place name)
 
 ### API Endpoint
 ```
-https://api.postcodes.io
+https://nominatim.openstreetmap.org
 ```
 
-### License: Open Government License (OGL) v3.0
-
-**Source:** Contains Ordnance Survey data © Crown copyright and database right [year]
+### License: Open Database License (ODbL) 1.0
 
 **Key Terms:**
 - ✅ **Free to use** for commercial and non-commercial purposes
 - ✅ **No API key required**
-- ✅ **Attribution required**
-- ✅ **Can modify and distribute**
-- ❌ Must not claim official endorsement
+- ✅ **Attribution required** ("© OpenStreetMap contributors")
+- ⚠️ **Usage policy applies** — max 1 request/second, valid User-Agent or Referer identifying the app
 
 ### Our Compliance
 
 **Attribution (displayed in app footer):**
 ```
-Data sources: Postcodes.io
+Location data: OpenStreetMap · Geocoding by Nominatim
 ```
 
-**Full Attribution:**
-Contains OS data © Crown copyright and database right 2025
-Contains Royal Mail data © Royal Mail copyright and database right 2025
-Contains National Statistics data © Crown copyright and database right 2025
+**Usage policy compliance:**
+- Requests are proxied through `/api/geocode` with an identifying `User-Agent` header
+- Autocomplete requests are debounced (300ms) and throttled server-side to ≤1 request/second
 
-**License URL:** https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/
+**License URL:** https://opendatacommons.org/licenses/odbl/1.0/
 
 ### Usage Limits
-- No official rate limits
-- Fair use policy applies
-- Recommended: max 10 requests/second
-- **Current usage:** ~1-3 requests per user search (well within limits)
+- Maximum 1 request/second (enforced via debounce + server-side throttle)
+- **Current usage:** ~1-2 requests per user interaction (well within limits)
 
 ---
 
@@ -87,7 +81,7 @@ https://overpass-api.de/api/interpreter
 
 **Attribution (displayed in app footer):**
 ```
-Data sources: Postcodes.io, OpenStreetMap
+Location data: © OpenStreetMap contributors · Geocoding by Nominatim
 ```
 
 **Full Attribution:**
@@ -249,15 +243,14 @@ A project of the Cornell Lab of Ornithology
 
 ### In App Footer (Currently Displayed)
 ```
-Data sources: Postcodes.io, OpenStreetMap
+Location data from OpenStreetMap · Geocoding by Nominatim · Bird images from Wikimedia Commons
 ```
 
 ### Should Be (Recommended)
 ```
 Data sources: 
-• Postcode data: Postcodes.io (Contains OS data © Crown copyright)
-• Location data: © OpenStreetMap contributors
-• Bird photos: Unsplash photographers
+• Geocoding & location data: © OpenStreetMap contributors (Nominatim + Overpass API, ODbL)
+• Bird photos: Wikimedia Commons contributors
 ```
 
 ---
@@ -265,19 +258,15 @@ Data sources:
 ## ✅ Compliance Checklist
 
 ### Currently Compliant ✅
-- [x] Postcodes.io - Basic attribution displayed
+- [x] Nominatim - Attribution displayed, usage policy respected (User-Agent + throttle)
 - [x] OpenStreetMap - Basic attribution displayed
-- [x] Unsplash - Using within license terms
+- [x] Wikimedia Commons - Bird images attributed
 - [x] No API keys required for current data sources
 - [x] No rate limit violations
 - [x] Not creating derivative databases
 
 ### Should Improve 🟡
-- [ ] Add full OGL attribution for Postcodes.io
-- [ ] Add "© OpenStreetMap contributors" explicitly
-- [ ] Add photographer credits to Unsplash images
-- [ ] Consider Unsplash API for production
-- [ ] Add data attribution page (/about/data-sources)
+- [ ] Add "© OpenStreetMap contributors" more prominently (e.g., on results pages)
 
 ### For Future (eBird Integration) 📅
 - [ ] Register for eBird API key
@@ -296,11 +285,9 @@ Data sources:
    <footer className="bg-white border-t border-gray-200 mt-16">
      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
        <p className="text-center text-sm text-gray-600">
-         Postcode data: <a href="https://postcodes.io">Postcodes.io</a> (Contains OS data © Crown copyright)
+         Geocoding & location data: © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (Nominatim + Overpass API)
          {' • '}
-         Location data: © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>
-         {' • '}
-         Photos: <a href="https://unsplash.com">Unsplash</a>
+         Bird images: <a href="https://commons.wikimedia.org">Wikimedia Commons</a>
        </p>
      </div>
    </footer>
@@ -349,7 +336,7 @@ Data sources:
 
 ## 📞 Contact Information
 
-**Postcodes.io Support:** hello@ideal-postcodes.co.uk
+**Nominatim / OpenStreetMap:** https://operations.osmfoundation.org/policies/nominatim/
 **OpenStreetMap:** https://wiki.openstreetmap.org/wiki/Contact
 **Unsplash Support:** https://help.unsplash.com/
 **eBird Support:** ebird@cornell.edu

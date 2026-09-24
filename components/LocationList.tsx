@@ -70,7 +70,7 @@ export default function LocationList({ locations, isLoading = false, postcode }:
             No nearby locations found
           </h3>
           <p className="text-[var(--text-secondary)]">
-            No birding locations found within 5 miles. Try a different postcode or check back later.
+            No birding locations found within 5 miles. Try a different location or check back later.
           </p>
         </div>
       </section>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { MapPin, Trees, Waves, Leaf, Footprints, Map } from 'lucide-react';
+import { MapPin, Trees, Waves, Leaf, Footprints, Map, Route, ExternalLink } from 'lucide-react';
 import { formatDistance } from '@/lib/utils/distanceCalculator';
 import dynamic from 'next/dynamic';
 
@@ -11,12 +11,16 @@ interface LocationCardProps {
   location: {
     id: string;
     name: string;
-    type: 'water' | 'woodland' | 'park' | 'nature_reserve' | 'trail';
+    type: 'water' | 'woodland' | 'park' | 'nature_reserve' | 'trail' | 'route';
     distance: number;
     latitude: number;
     longitude: number;
     description?: string;
     tags?: string[];
+    osmRelationId?: number;
+    lengthKm?: number;
+    network?: 'nwn' | 'rwn' | 'lwn';
+    website?: string;
   };
 }
 
@@ -26,6 +30,7 @@ const locationIcons = {
   park: Leaf,
   nature_reserve: Leaf,
   trail: Footprints,
+  route: Route,
 };
 
 const locationColors = {
@@ -34,6 +39,7 @@ const locationColors = {
   park: 'bg-green-50 text-green-700 border border-green-200 dark:bg-green-950/70 dark:text-green-200 dark:border-green-800',
   nature_reserve: 'bg-teal-50 text-teal-700 border border-teal-200 dark:bg-teal-950/70 dark:text-teal-200 dark:border-teal-800',
   trail: 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/70 dark:text-amber-200 dark:border-amber-800',
+  route: 'bg-violet-50 text-violet-700 border border-violet-200 dark:bg-violet-950/70 dark:text-violet-200 dark:border-violet-800',
 };
 
 const iconContainerColors = {
@@ -42,6 +48,7 @@ const iconContainerColors = {
   park: 'bg-green-100 text-green-600 dark:bg-green-950 dark:text-green-300',
   nature_reserve: 'bg-teal-100 text-teal-600 dark:bg-teal-950 dark:text-teal-300',
   trail: 'bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-300',
+  route: 'bg-violet-100 text-violet-600 dark:bg-violet-950 dark:text-violet-300',
 };
 
 const locationTypeLabels = {
@@ -50,15 +57,24 @@ const locationTypeLabels = {
   park: 'Park',
   nature_reserve: 'Nature Reserve',
   trail: 'Trail',
+  route: 'Route',
+};
+
+const networkLabels = {
+  nwn: 'National Trail',
+  rwn: 'Regional Route',
+  lwn: 'Local Walk',
 };
 
 export default function LocationCard({ location }: LocationCardProps) {
   const [isMapOpen, setIsMapOpen] = useState(false);
+  const [lengthKm, setLengthKm] = useState<number | undefined>(location.lengthKm);
 
   const Icon = locationIcons[location.type];
   const badgeClass = locationColors[location.type];
   const iconClass = iconContainerColors[location.type];
   const typeLabel = locationTypeLabels[location.type];
+  const networkLabel = location.network ? networkLabels[location.network] : null;
 
   return (
     <>
@@ -81,10 +97,20 @@ export default function LocationCard({ location }: LocationCardProps) {
               </div>
             </div>
 
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center flex-wrap gap-2 mb-2">
               <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${badgeClass}`}>
                 {typeLabel}
               </span>
+              {networkLabel && (
+                <span className="px-2 py-0.5 text-xs font-medium text-[var(--text-secondary)] bg-[var(--warm-cream)] rounded-full border border-[var(--border-light)]">
+                  {networkLabel}
+                </span>
+              )}
+              {lengthKm !== undefined && (
+                <span className="text-xs text-[var(--text-secondary)]">
+                  {lengthKm} km
+                </span>
+              )}
             </div>
 
             {location.description && (
@@ -107,14 +133,28 @@ export default function LocationCard({ location }: LocationCardProps) {
                 </div>
               )}
 
-              <button
-                onClick={() => setIsMapOpen(true)}
-                className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[var(--brand-green)] bg-[var(--brand-green)]/5 border border-[var(--brand-green)]/20 rounded-full hover:bg-[var(--brand-green)] hover:text-white hover:border-[var(--brand-green)] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--brand-green)] focus:ring-offset-1"
-                aria-label={`View ${location.name} on map`}
-              >
-                <Map className="w-3.5 h-3.5" />
-                View on map
-              </button>
+              <div className="flex-shrink-0 flex items-center gap-1.5">
+                {location.osmRelationId !== undefined && (
+                  <a
+                    href={`https://www.openstreetmap.org/relation/${location.osmRelationId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[var(--brand-green)] bg-[var(--brand-green)]/5 border border-[var(--brand-green)]/20 rounded-full hover:bg-[var(--brand-green)] hover:text-white hover:border-[var(--brand-green)] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--brand-green)] focus:ring-offset-1"
+                    aria-label={`View full route details for ${location.name} on OpenStreetMap`}
+                  >
+                    View full route
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                )}
+                <button
+                  onClick={() => setIsMapOpen(true)}
+                  className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[var(--brand-green)] bg-[var(--brand-green)]/5 border border-[var(--brand-green)]/20 rounded-full hover:bg-[var(--brand-green)] hover:text-white hover:border-[var(--brand-green)] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--brand-green)] focus:ring-offset-1"
+                  aria-label={`View ${location.name} on map`}
+                >
+                  <Map className="w-3.5 h-3.5" />
+                  View on map
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -127,6 +167,9 @@ export default function LocationCard({ location }: LocationCardProps) {
           distance={location.distance}
           latitude={location.latitude}
           longitude={location.longitude}
+          osmRelationId={location.osmRelationId}
+          website={location.website}
+          onRouteLength={setLengthKm}
           onClose={() => setIsMapOpen(false)}
         />
       )}

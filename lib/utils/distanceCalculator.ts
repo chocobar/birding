@@ -33,6 +33,18 @@ function toRadians(degrees: number): number {
 }
 
 /**
+ * Calculate the total length of a route by summing distances between
+ * consecutive points. Returns distance in miles.
+ */
+export function calculateRouteLengthMiles(points: [number, number][]): number {
+  let total = 0;
+  for (let i = 1; i < points.length; i++) {
+    total += calculateDistance(points[i - 1][0], points[i - 1][1], points[i][0], points[i][1]);
+  }
+  return total;
+}
+
+/**
  * Convert miles to kilometers
  */
 export function milesToKilometers(miles: number): number {

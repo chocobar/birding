@@ -2,8 +2,9 @@
 
 import { useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import { X } from 'lucide-react';
-import { formatDistance } from '@/lib/utils/distanceCalculator';
+import { X, ExternalLink, Loader2 } from 'lucide-react';
+import { formatDistance, calculateRouteLengthMiles, milesToKilometers } from '@/lib/utils/distanceCalculator';
+import { useRouteGeometry } from '@/lib/hooks/useBirdSearch';
 
 const LocationMap = dynamic(() => import('./LocationMap'), {
   ssr: false,
@@ -20,10 +21,26 @@ interface MapModalProps {
   distance: number;
   latitude: number;
   longitude: number;
+  osmRelationId?: number;
+  website?: string;
+  onRouteLength?: (lengthKm: number) => void;
   onClose: () => void;
 }
 
-export default function MapModal({ name, type, distance, latitude, longitude, onClose }: MapModalProps) {
+export default function MapModal({
+  name,
+  type,
+  distance,
+  latitude,
+  longitude,
+  osmRelationId,
+  website,
+  onRouteLength,
+  onClose,
+}: MapModalProps) {
+  const isRoute = typeof osmRelationId === 'number';
+  const geometryQuery = useRouteGeometry(isRoute ? osmRelationId : null);
+
   const handleEscape = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -39,6 +56,23 @@ export default function MapModal({ name, type, distance, latitude, longitude, on
       document.body.style.overflow = '';
     };
   }, [handleEscape]);
+
+  const geometry = geometryQuery.data;
+  const isLoadingGeometry = isRoute && geometryQuery.isPending;
+
+  useEffect(() => {
+    if (!geometry || !onRouteLength) return;
+    const lengthKm = Math.round(milesToKilometers(calculateRouteLengthMiles(geometry)) * 10) / 10;
+    onRouteLength(lengthKm);
+  }, [geometry, onRouteLength]);
+
+  const lengthKmDisplay = geometry
+    ? Math.round(milesToKilometers(calculateRouteLengthMiles(geometry)) * 10) / 10
+    : null;
+
+  const routeDetailLink = isRoute
+    ? `https://www.openstreetmap.org/relation/${osmRelationId}`
+    : null;
 
   return (
     <div
@@ -61,8 +95,33 @@ export default function MapModal({ name, type, distance, latitude, longitude, on
             <h2 className="text-base sm:text-lg font-semibold text-[var(--text-primary)] truncate">
               {name}
             </h2>
-            <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
-              {type} · {formatDistance(distance)} away
+            <p className="text-xs sm:text-sm text-[var(--text-secondary)] flex items-center flex-wrap gap-x-2 gap-y-1">
+              <span>
+                {type} · {formatDistance(distance)} away
+                {lengthKmDisplay !== null && ` · ${lengthKmDisplay} km`}
+              </span>
+              {routeDetailLink && (
+                <a
+                  href={routeDetailLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-[var(--brand-green)] underline decoration-[var(--brand-green)]/40 hover:decoration-[var(--brand-green)]"
+                >
+                  View full route
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
+              {website && (
+                <a
+                  href={website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-[var(--brand-green)] underline decoration-[var(--brand-green)]/40 hover:decoration-[var(--brand-green)]"
+                >
+                  Official website
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
             </p>
           </div>
           <button
@@ -82,7 +141,14 @@ export default function MapModal({ name, type, distance, latitude, longitude, on
             name={name}
             typeLabel={type}
             distance={distance}
+            routeGeometry={geometry}
           />
+          {isLoadingGeometry && (
+            <div className="absolute inset-0 z-[500] flex flex-col items-center justify-center bg-[var(--warm-cream)]/80 gap-2">
+              <Loader2 className="w-6 h-6 text-[var(--brand-green)] animate-spin" />
+              <p className="text-sm text-[var(--text-secondary)]">Loading route…</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

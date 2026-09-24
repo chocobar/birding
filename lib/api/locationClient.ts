@@ -1,7 +1,46 @@
 import { Location } from '@/lib/types';
 import { calculateDistance } from '@/lib/utils/distanceCalculator';
 
-const OVERPASS_API_BASE = 'https://overpass-api.de/api/interpreter';
+const OVERPASS_ENDPOINTS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+];
+
+const OVERPASS_REQUEST_TIMEOUT_MS = 30000;
+
+/**
+ * Fetch an Overpass query, retrying across endpoints (and twice per endpoint).
+ * The public Overpass server intermittently 504s or hangs under load.
+ */
+async function fetchOverpass(query: string): Promise<OverpassResponse> {
+  let lastError: unknown;
+
+  for (const endpoint of OVERPASS_ENDPOINTS) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: `data=${encodeURIComponent(query)}`,
+          signal: AbortSignal.timeout(OVERPASS_REQUEST_TIMEOUT_MS),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Overpass API error: ${response.status}`);
+        }
+
+        return (await response.json()) as OverpassResponse;
+      } catch (error) {
+        lastError = error;
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+      }
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('Overpass API unavailable');
+}
 
 interface OverpassElement {
   type: string;
@@ -12,6 +51,12 @@ interface OverpassElement {
     lat: number;
     lon: number;
   };
+  members?: Array<{
+    type: string;
+    ref: number;
+    role?: string;
+    geometry?: Array<{ lat: number; lon: number } | null>;
+  }>;
   tags?: {
     name?: string;
     natural?: string;
@@ -36,9 +81,12 @@ export async function getNearbyLocations(
   radiusMiles: number = 5
 ): Promise<Location[]> {
   const radiusMeters = radiusMiles * 1609.34; // Convert miles to meters
-  
-  // Overpass query to find natural features and parks
-  const query = `
+
+  // Two separate queries run in parallel and merged client-side. A single
+  // combined query (union + relation statement) reliably 504s on Overpass,
+  // while each query alone is fast. Separate `out` budgets also stop dense
+  // urban path/footway ways from crowding named routes out of the results.
+  const elementsQuery = `
     [out:json][timeout:25];
     (
       node["natural"="water"](around:${radiusMeters},${latitude},${longitude});
@@ -53,37 +101,47 @@ export async function getNearbyLocations(
       way["highway"="path"]["name"](around:${radiusMeters},${latitude},${longitude});
       way["highway"="footway"]["name"](around:${radiusMeters},${latitude},${longitude});
     );
-    out center tags 100;
+    out center tags 80;
   `;
 
-  try {
-    const response = await fetch(OVERPASS_API_BASE, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: `data=${encodeURIComponent(query)}`,
-    });
+  const routesQuery = `
+    [out:json][timeout:25];
+    relation["type"="route"]["route"~"hiking|foot|walking"]["name"](around:${radiusMeters},${latitude},${longitude});
+    out center tags 30;
+  `;
 
-    if (!response.ok) {
-      throw new Error(`Overpass API error: ${response.status}`);
-    }
+  const fetchElements = async (query: string): Promise<OverpassElement[]> => {
+    const data = await fetchOverpass(query);
+    return data.elements ?? [];
+  };
 
-    const data: OverpassResponse = await response.json();
+  const [elementsResult, routesResult] = await Promise.allSettled([
+    fetchElements(elementsQuery),
+    fetchElements(routesQuery),
+  ]);
 
-    const locations: Location[] = data.elements
-      .filter(element => element.tags?.name) // Only include named locations
-      .map(element => parseOverpassElement(element, latitude, longitude))
-      .filter((loc): loc is Location => loc !== null)
-      .sort((a, b) => a.distance - b.distance) // Sort by distance
-      .slice(0, 10); // Limit to 10 results
-
-    return locations;
-  } catch (error) {
-    console.error('Error fetching locations from Overpass API:', error);
+  if (elementsResult.status === 'rejected') {
+    console.error('Error fetching locations from Overpass API:', elementsResult.reason);
     // Return mock data as fallback
     return getMockLocations(latitude, longitude);
   }
+
+  if (routesResult.status === 'rejected') {
+    console.error('Error fetching walking routes from Overpass API:', routesResult.reason);
+  }
+
+  const elements: OverpassElement[] = [
+    ...elementsResult.value,
+    ...(routesResult.status === 'fulfilled' ? routesResult.value : []),
+  ];
+
+  const locations: Location[] = elements
+    .filter(element => element.tags?.name) // Only include named locations
+    .map(element => parseOverpassElement(element, latitude, longitude))
+    .filter((loc): loc is Location => loc !== null)
+    .sort((a, b) => a.distance - b.distance); // Sort by distance
+
+  return locations;
 }
 
 /**
@@ -103,16 +161,26 @@ function parseOverpassElement(
 
   const distance = calculateDistance(userLat, userLon, lat, lon);
   const type = determineLocationType(element.tags);
+  const tags = element.tags;
+
+  const network =
+    tags?.network === 'nwn' || tags?.network === 'rwn' || tags?.network === 'lwn'
+      ? tags.network
+      : undefined;
 
   return {
     id: `osm-${element.type}-${element.id}`,
-    name: element.tags.name,
+    name: tags!.name!,
     type,
     latitude: lat,
     longitude: lon,
     distance,
-    description: generateDescription(element.tags, type),
-    tags: extractTags(element.tags),
+    description: generateDescription(tags, type),
+    tags: extractTags(tags),
+    osmRelationId: element.type === 'relation' ? element.id : undefined,
+    network,
+    surface: tags?.surface || undefined,
+    website: tags?.website || undefined,
   };
 }
 
@@ -121,6 +189,10 @@ function parseOverpassElement(
  */
 function determineLocationType(tags: OverpassElement['tags']): Location['type'] {
   if (!tags) return 'park';
+
+  if (tags.type === 'route' && tags.route) {
+    return 'route';
+  }
 
   if (tags.natural === 'water' || tags.waterway) {
     return 'water';
@@ -157,9 +229,20 @@ function generateDescription(tags: OverpassElement['tags'], type: Location['type
     nature_reserve: 'Protected nature reserve with diverse habitats',
     park: 'Public park with green spaces and nature areas',
     trail: 'Walking trail - good for bird watching on foot',
+    route: 'Named walking route made up of linked paths',
   };
 
   let description = descriptions[type];
+
+  if (type === 'route') {
+    if (tags.network === 'nwn') {
+      description = 'National Trail - long-distance waymarked walking route';
+    } else if (tags.network === 'rwn') {
+      description = 'Regional walking route - waymarked, typically a day-long walk';
+    } else if (tags.network === 'lwn') {
+      description = 'Local waymarked walk - often a circular route';
+    }
+  }
 
   if (tags.access === 'yes' || tags.access === 'permissive') {
     description += '. Public access available';
@@ -179,8 +262,41 @@ function extractTags(tags: OverpassElement['tags']): string[] {
   if (tags.natural) extracted.push(tags.natural);
   if (tags.leisure) extracted.push(tags.leisure);
   if (tags.waterway) extracted.push(tags.waterway);
+  if (tags.route && tags.route !== 'road') extracted.push(tags.route);
+  if (tags.network) extracted.push(tags.network);
 
   return extracted;
+}
+
+/**
+ * Fetch the full geometry (polyline points) of a walking route relation.
+ * Used on demand when a route's map is opened; points are ordered lat/lng pairs.
+ */
+export async function getRouteGeometry(relationId: number): Promise<[number, number][]> {
+  const query = `[out:json][timeout:25];relation(${relationId});out geom;`;
+
+  const data = await fetchOverpass(query);
+  const relation = data.elements?.[0];
+
+  if (!relation?.members) {
+    throw new Error(`No geometry found for relation ${relationId}`);
+  }
+
+  const points: [number, number][] = [];
+  for (const member of relation.members) {
+    if (member.type !== 'way' || !member.geometry) continue;
+    for (const point of member.geometry) {
+      if (point) {
+        points.push([point.lat, point.lon]);
+      }
+    }
+  }
+
+  if (points.length < 2) {
+    throw new Error(`Route ${relationId} has no usable geometry`);
+  }
+
+  return points;
 }
 
 /**
@@ -237,6 +353,18 @@ function getMockLocations(latitude: number, longitude: number): Location[] {
       distance: 3.1,
       description: 'Walking trail - good for bird watching on foot',
       tags: ['footway', 'trail'],
+    },
+    {
+      id: 'mock-6',
+      name: 'Riverside Circular Walk',
+      type: 'route',
+      latitude: latitude + 0.005,
+      longitude: longitude - 0.005,
+      distance: 2.7,
+      description: 'Local waymarked walk - often a circular route',
+      tags: ['hiking', 'lwn'],
+      osmRelationId: 5223120,
+      network: 'lwn',
     },
   ];
 }

@@ -149,10 +149,14 @@ export default function LocationCard({ location }: LocationCardProps) {
                 <button
                   onClick={() => setIsMapOpen(true)}
                   className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[var(--brand-green)] bg-[var(--brand-green)]/5 border border-[var(--brand-green)]/20 rounded-full hover:bg-[var(--brand-green)] hover:text-white hover:border-[var(--brand-green)] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--brand-green)] focus:ring-offset-1"
-                  aria-label={`View ${location.name} on map`}
+                  aria-label={
+                    location.type === 'route'
+                      ? `View route for ${location.name}`
+                      : `View ${location.name} on map`
+                  }
                 >
                   <Map className="w-3.5 h-3.5" />
-                  View on map
+                  {location.type === 'route' ? 'View route' : 'View on map'}
                 </button>
               </div>
             </div>

@@ -2,21 +2,28 @@ import { NextRequest } from 'next/server';
 import { Location } from '@/lib/types';
 import {
   fetchOverpass,
-  buildElementsQuery,
+  buildGreensQuery,
+  buildNatureReservesQuery,
+  buildWaterQuery,
+  buildGreenRelationsQuery,
+  buildTrailsQuery,
   buildRoutesQuery,
   parseOverpassElements,
-  OverpassResponse,
+  OverpassElement,
+  OverpassFetchOptions,
 } from '@/lib/api/overpass';
 
 const DEFAULT_RADIUS_MILES = 5;
 const MAX_RADIUS_MILES = 20;
 const MILES_TO_METERS = 1609.34;
 
-// Elements query is the critical one; routes are best-effort decoration.
-const ELEMENTS_OPTS = { timeoutMs: 15000, attemptsPerEndpoint: 2, deadlineMs: 30000 };
-const ROUTES_OPTS = { timeoutMs: 8000, attemptsPerEndpoint: 1, deadlineMs: 15000 };
-// Never delay the results list for the routes query longer than this.
-const ROUTES_GRACE_MS = 12000;
+// Greens and water are the critical content of the list; everything else is
+// best-effort decoration that must never delay rendering.
+const CRITICAL_OPTS: OverpassFetchOptions = { timeoutMs: 15000, attemptsPerEndpoint: 2, deadlineMs: 30000 };
+const BEST_EFFORT_OPTS: OverpassFetchOptions = { timeoutMs: 12000, attemptsPerEndpoint: 2, deadlineMs: 25000 };
+const ROUTES_OPTS: OverpassFetchOptions = { timeoutMs: 8000, attemptsPerEndpoint: 1, deadlineMs: 15000 };
+// Never delay the results list for the best-effort group longer than this.
+const BEST_EFFORT_GRACE_MS = 12000;
 
 const CACHE_TTL_MS = 10 * 60 * 1000; // fresh results served for 10 minutes
 const STALE_TTL_MS = 24 * 60 * 60 * 1000; // stale results served if Overpass fails
@@ -49,35 +56,59 @@ function getCached(key: string): CacheEntry | undefined {
 async function loadLocations(latitude: number, longitude: number, radiusMiles: number): Promise<Location[]> {
   const radiusMeters = radiusMiles * MILES_TO_METERS;
 
-  const fetchElements = async (query: string, opts: typeof ELEMENTS_OPTS | typeof ROUTES_OPTS) => {
-    const data: OverpassResponse = await fetchOverpass(query, opts);
+  const fetchElements = async (query: string, opts: OverpassFetchOptions): Promise<OverpassElement[]> => {
+    const data = await fetchOverpass(query, opts);
     return data.elements ?? [];
   };
 
-  // Run both queries in parallel. The routes query is the one most likely to
-  // 504 or hang on the public Overpass servers (relation lookups are expensive),
-  // so it is raced against a short grace timer: if it hasn't finished in time,
-  // the list is served without routes instead of blocking on it.
-  const elementsPromise = fetchElements(buildElementsQuery(latitude, longitude, radiusMeters), ELEMENTS_OPTS);
-  const routesPromise = fetchElements(buildRoutesQuery(latitude, longitude, radiusMeters), ROUTES_OPTS);
-
-  const routes = await Promise.race([
-    routesPromise.then(
-      (elements) => elements,
-      () => []
-    ),
-    new Promise<null>((resolve) => setTimeout(resolve, ROUTES_GRACE_MS)),
+  // One query per feature category (see overpass.ts for why a single shared
+  // result cap must never be used: it lets water crowd the nearest parks out).
+  // Greens and water are the core of the list and are awaited; nature
+  // reserves, green-space relations, trails and walking routes are fragile
+  // and/or high-latency on the public Overpass servers, so they are raced
+  // against a short grace timer: if they have not finished in time the list
+  // is served without them instead of blocking on them.
+  const criticalPromise = Promise.all([
+    fetchElements(buildGreensQuery(latitude, longitude, radiusMeters), CRITICAL_OPTS),
+    fetchElements(buildWaterQuery(latitude, longitude, radiusMeters), CRITICAL_OPTS),
   ]);
 
-  const elements = await elementsPromise;
+  const bestEffortPromise = Promise.allSettled([
+    fetchElements(buildNatureReservesQuery(latitude, longitude, radiusMeters), BEST_EFFORT_OPTS),
+    fetchElements(buildGreenRelationsQuery(latitude, longitude, radiusMeters), BEST_EFFORT_OPTS),
+    fetchElements(buildTrailsQuery(latitude, longitude, radiusMeters), BEST_EFFORT_OPTS),
+    fetchElements(buildRoutesQuery(latitude, longitude, radiusMeters), ROUTES_OPTS),
+  ]).then((results) =>
+    results.flatMap((result) => (result.status === 'fulfilled' ? result.value : []))
+  );
 
-  if (routes === null) {
-    // Swallow a late rejection so the abandoned promise can't crash the process
-    routesPromise.catch(() => undefined);
-    console.warn(`Routes query exceeded ${ROUTES_GRACE_MS}ms grace for ${latitude},${longitude}; serving without routes`);
+  const bestEffort = await Promise.race([
+    bestEffortPromise,
+    new Promise<OverpassElement[]>((resolve) =>
+      setTimeout(() => resolve([]), BEST_EFFORT_GRACE_MS)
+    ),
+  ]);
+
+  let critical: OverpassElement[][];
+  try {
+    critical = await criticalPromise;
+  } catch (error) {
+    // Both critical queries failed. If some best-effort data did arrive in
+    // time, serve that rather than discarding real results for mock data.
+    if (bestEffort.length === 0) {
+      throw error;
+    }
+    console.warn(
+      `Greens/water queries failed for ${latitude},${longitude}; serving best-effort categories only`
+    );
+    return parseOverpassElements(bestEffort, latitude, longitude);
   }
 
-  return parseOverpassElements([...elements, ...(routes ?? [])], latitude, longitude);
+  return parseOverpassElements(
+    [...critical.flat(), ...bestEffort],
+    latitude,
+    longitude
+  );
 }
 
 async function getLocationsCached(latitude: number, longitude: number, radiusMiles: number): Promise<Location[]> {

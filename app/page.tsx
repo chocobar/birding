@@ -28,7 +28,6 @@ export default function Home() {
 
   const isLoadingBirds = birdQuery.isLoading;
   const isLoadingLocations = locationQuery.isLoading;
-  const isLoading = isLoadingBirds || isLoadingLocations;
   const error =
     (birdQuery.error ? String(birdQuery.error) : null)
     || (locationQuery.error ? String(locationQuery.error) : null);
@@ -80,7 +79,6 @@ export default function Home() {
         <section className="py-10 sm:py-14">
           <LocationSearch
             onSearch={handleSearch}
-            isLoading={isLoading}
           />
         </section>
 

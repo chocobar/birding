@@ -7,6 +7,8 @@ const USER_AGENT = 'BirdingDiscovery/0.1.0 (https://github.com/chocobar/birding)
 
 // Nominatim usage policy: maximum 1 request per second (per server instance)
 const MIN_REQUEST_INTERVAL_MS = 1050;
+// Bound every upstream call so a hung Nominatim can't hang the search bar
+const UPSTREAM_TIMEOUT_MS = 10000;
 let lastRequestAt = 0;
 
 async function throttledFetch(url: string): Promise<Response> {
@@ -21,6 +23,7 @@ async function throttledFetch(url: string): Promise<Response> {
       'User-Agent': USER_AGENT,
       'Accept-Language': 'en',
     },
+    signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
   });
 }
 

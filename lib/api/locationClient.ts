@@ -10,7 +10,10 @@ const OVERPASS_REQUEST_TIMEOUT_MS = 30000;
 
 /**
  * Fetch an Overpass query, retrying across endpoints (and twice per endpoint).
- * The public Overpass server intermittently 504s or hangs under load.
+ * The public Overpass server intermittently 504s or hangs under load, and
+ * when a query exceeds its server-side timeout it answers 200 with an empty
+ * element list plus a `remark` instead of an error status — both cases must
+ * retry (and ultimately fall back) rather than render as "no results".
  */
 async function fetchOverpass(query: string): Promise<OverpassResponse> {
   let lastError: unknown;
@@ -31,7 +34,13 @@ async function fetchOverpass(query: string): Promise<OverpassResponse> {
           throw new Error(`Overpass API error: ${response.status}`);
         }
 
-        return (await response.json()) as OverpassResponse;
+        const data = (await response.json()) as OverpassResponse;
+
+        if (data.remark?.includes('runtime error')) {
+          throw new Error(`Overpass query failed: ${data.remark}`);
+        }
+
+        return data;
       } catch (error) {
         lastError = error;
         await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -70,6 +79,7 @@ interface OverpassElement {
 
 interface OverpassResponse {
   elements: OverpassElement[];
+  remark?: string;
 }
 
 /**
@@ -81,32 +91,84 @@ export async function getNearbyLocations(
   radiusMiles: number = 5
 ): Promise<Location[]> {
   const radiusMeters = radiusMiles * 1609.34; // Convert miles to meters
+  const around = `around:${radiusMeters},${latitude},${longitude}`;
 
-  // Two separate queries run in parallel and merged client-side. A single
-  // combined query (union + relation statement) reliably 504s on Overpass,
-  // while each query alone is fast. Separate `out` budgets also stop dense
-  // urban path/footway ways from crowding named routes out of the results.
-  const elementsQuery = `
+  // One query per category, each with its own output budget and its own
+  // retry/failure isolation. Overpass prints results in element-id order, not
+  // distance order, and evaluates a union's statements sequentially within a
+  // single request budget: a shared `out ... 80` cap lets high-volume
+  // categories (small water bodies, river segments) crowd nearer parks and
+  // woodlands out of the results entirely, and one slow statement can time
+  // out a whole union. Splitting means a degraded Overpass can only ever
+  // lose one category instead of silently distorting all of them.
+  //
+  // Category queries are uncapped so the nearest features always make it;
+  // payloads stay small because every statement requires a name tag and
+  // `out center tags` omits full geometry.
+  const greensQuery = `
     [out:json][timeout:25];
     (
-      node["natural"="water"](around:${radiusMeters},${latitude},${longitude});
-      way["natural"="water"](around:${radiusMeters},${latitude},${longitude});
-      node["natural"="wood"](around:${radiusMeters},${latitude},${longitude});
-      way["natural"="wood"](around:${radiusMeters},${latitude},${longitude});
-      node["leisure"="nature_reserve"](around:${radiusMeters},${latitude},${longitude});
-      way["leisure"="nature_reserve"](around:${radiusMeters},${latitude},${longitude});
-      node["leisure"="park"](around:${radiusMeters},${latitude},${longitude});
-      way["leisure"="park"](around:${radiusMeters},${latitude},${longitude});
-      way["waterway"~"river|stream|canal"](around:${radiusMeters},${latitude},${longitude});
-      way["highway"="path"]["name"](around:${radiusMeters},${latitude},${longitude});
-      way["highway"="footway"]["name"](around:${radiusMeters},${latitude},${longitude});
+      node["leisure"="park"]["name"](${around});
+      way["leisure"="park"]["name"](${around});
+      node["natural"="wood"]["name"](${around});
+      way["natural"="wood"]["name"](${around});
+      way["landuse"="forest"]["name"](${around});
     );
-    out center tags 80;
+    out center tags;
+  `;
+
+  // Nature reserves sit in their own request: their statements are among the
+  // slowest on the public Overpass instances under load, and their failure
+  // should not take parks and woodlands down with them.
+  const natureReservesQuery = `
+    [out:json][timeout:25];
+    (
+      node["leisure"="nature_reserve"]["name"](${around});
+      way["leisure"="nature_reserve"]["name"](${around});
+    );
+    out center tags;
+  `;
+
+  const waterQuery = `
+    [out:json][timeout:25];
+    (
+      node["natural"="water"]["name"](${around});
+      way["natural"="water"]["name"](${around});
+      way["waterway"~"river|stream|canal"]["name"](${around});
+    );
+    out center tags;
+  `;
+
+  // Large green spaces are often mapped as multipolygon relations (commons,
+  // heaths, country parks) which the node/way statements above cannot match.
+  // Relation `around` queries are slow on Overpass, so they run as their own
+  // request instead of being folded into the other queries.
+  const greenRelationsQuery = `
+    [out:json][timeout:25];
+    (
+      relation["leisure"="park"]["name"](${around});
+      relation["natural"="wood"]["name"](${around});
+      relation["leisure"="nature_reserve"]["name"](${around});
+      relation["natural"="water"]["name"](${around});
+    );
+    out center tags 60;
+  `;
+
+  // Named path/footway ways fragment into thousands of tiny segments in urban
+  // areas (6,000+ within 5 miles of central London), so they get a capped
+  // budget of their own and are de-duplicated by name client-side.
+  const trailsQuery = `
+    [out:json][timeout:25];
+    (
+      way["highway"="path"]["name"](${around});
+      way["highway"="footway"]["name"](${around});
+    );
+    out center tags 60;
   `;
 
   const routesQuery = `
     [out:json][timeout:25];
-    relation["type"="route"]["route"~"hiking|foot|walking"]["name"](around:${radiusMeters},${latitude},${longitude});
+    relation["type"="route"]["route"~"hiking|foot|walking"]["name"](${around});
     out center tags 30;
   `;
 
@@ -115,25 +177,33 @@ export async function getNearbyLocations(
     return data.elements ?? [];
   };
 
-  const [elementsResult, routesResult] = await Promise.allSettled([
-    fetchElements(elementsQuery),
-    fetchElements(routesQuery),
-  ]);
+  const queries = [
+    { label: 'greens', query: greensQuery },
+    { label: 'nature reserves', query: natureReservesQuery },
+    { label: 'water', query: waterQuery },
+    { label: 'green space relations', query: greenRelationsQuery },
+    { label: 'trails', query: trailsQuery },
+    { label: 'walking routes', query: routesQuery },
+  ];
 
-  if (elementsResult.status === 'rejected') {
-    console.error('Error fetching locations from Overpass API:', elementsResult.reason);
+  const settled = await Promise.allSettled(queries.map(({ query }) => fetchElements(query)));
+
+  const failures = settled.filter((result) => result.status === 'rejected');
+  if (failures.length === settled.length) {
+    console.error('Error fetching locations from Overpass API:', failures[0].reason);
     // Return mock data as fallback
     return getMockLocations(latitude, longitude);
   }
 
-  if (routesResult.status === 'rejected') {
-    console.error('Error fetching walking routes from Overpass API:', routesResult.reason);
-  }
+  settled.forEach((result, index) => {
+    if (result.status === 'rejected') {
+      console.error(`Error fetching ${queries[index].label} from Overpass API:`, result.reason);
+    }
+  });
 
-  const elements: OverpassElement[] = [
-    ...elementsResult.value,
-    ...(routesResult.status === 'fulfilled' ? routesResult.value : []),
-  ];
+  const elements: OverpassElement[] = settled.flatMap((result) =>
+    result.status === 'fulfilled' ? result.value : []
+  );
 
   const locations: Location[] = elements
     .filter(element => element.tags?.name) // Only include named locations
@@ -141,7 +211,27 @@ export async function getNearbyLocations(
     .filter((loc): loc is Location => loc !== null)
     .sort((a, b) => a.distance - b.distance); // Sort by distance
 
-  return locations;
+  return dedupeByName(locations);
+}
+
+/**
+ * Collapse features that share a name and type into their nearest instance.
+ * Rivers, canals and named paths are mapped as many short way segments
+ * sharing one name (40+ segments for a single canal); parks mapped both as a
+ * way and a relation would otherwise appear twice. Locations must already be
+ * sorted by distance so the nearest segment is kept.
+ */
+function dedupeByName(locations: Location[]): Location[] {
+  const seen = new Map<string, Location>();
+
+  for (const location of locations) {
+    const key = `${location.type}:${location.name.toLowerCase()}`;
+    if (!seen.has(key)) {
+      seen.set(key, location);
+    }
+  }
+
+  return Array.from(seen.values());
 }
 
 /**
@@ -261,6 +351,7 @@ function extractTags(tags: OverpassElement['tags']): string[] {
 
   if (tags.natural) extracted.push(tags.natural);
   if (tags.leisure) extracted.push(tags.leisure);
+  if (tags.landuse) extracted.push(tags.landuse);
   if (tags.waterway) extracted.push(tags.waterway);
   if (tags.route && tags.route !== 'road') extracted.push(tags.route);
   if (tags.network) extracted.push(tags.network);

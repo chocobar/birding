@@ -7,14 +7,13 @@ import { searchLocations, reverseGeocode } from '@/lib/api/geocodeClient';
 
 interface LocationSearchProps {
   onSearch: (location: GeocodedLocation) => void;
-  isLoading?: boolean;
 }
 
 const DEBOUNCE_MS = 300;
 const MIN_QUERY_LENGTH = 3;
 const LISTBOX_ID = 'location-suggestions';
 
-export default function LocationSearch({ onSearch, isLoading = false }: LocationSearchProps) {
+export default function LocationSearch({ onSearch }: LocationSearchProps) {
   const [inputValue, setInputValue] = useState('');
   const [suggestions, setSuggestions] = useState<GeocodedLocation[]>([]);
   const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
@@ -209,7 +208,7 @@ export default function LocationSearch({ onSearch, isLoading = false }: Location
     );
   };
 
-  const isBusy = isLoading || isGeocoding;
+  const isBusy = isGeocoding;
   const hasSelectableSuggestions = isSuggestionsOpen && !isSuggesting && suggestions.length > 0;
 
   return (
@@ -222,7 +221,6 @@ export default function LocationSearch({ onSearch, isLoading = false }: Location
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             placeholder="Search any location…"
-            disabled={isLoading}
             role="combobox"
             aria-expanded={isSuggestionsOpen}
             aria-controls={LISTBOX_ID}
@@ -236,11 +234,11 @@ export default function LocationSearch({ onSearch, isLoading = false }: Location
             aria-invalid={!!searchError}
             aria-describedby={searchError ? 'location-error' : undefined}
             autoComplete="off"
-            className={`w-full px-6 py-4 pr-28 text-base font-medium text-[var(--text-primary)] border rounded-full focus:outline-none focus:ring-2 transition-all ${
+            className={`w-full px-6 py-4 pr-28 text-base font-medium text-[var(--text-primary)] border rounded-full focus:outline-none focus:ring-2 transition-all bg-[var(--warm-cream)] ${
               searchError
                 ? 'border-red-400 focus:ring-red-300'
                 : 'border-[var(--border-light)] focus:border-[var(--brand-green)] focus:ring-[var(--brand-green-light)]'
-            } ${isLoading ? 'bg-[var(--warm-sand)] cursor-not-allowed' : 'bg-[var(--warm-cream)]'}`}
+            }`}
           />
           <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1.5">
             <button

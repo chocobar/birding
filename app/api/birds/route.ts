@@ -86,6 +86,7 @@ export async function GET(request: NextRequest) {
         headers: {
           'X-eBirdApiToken': apiKey,
         },
+        signal: AbortSignal.timeout(10000),
       }
     );
 

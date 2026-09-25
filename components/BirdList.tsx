@@ -79,6 +79,12 @@ async function fetchBirdImages(
 export default function BirdList({ birds, isLoading = false, isLiveData }: BirdListProps) {
   const [imageMap, setImageMap] = useState<Record<string, string | null>>({});
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [prevBirds, setPrevBirds] = useState(birds);
+
+  if (prevBirds !== birds) {
+    setPrevBirds(birds);
+    setVisibleCount(PAGE_SIZE);
+  }
 
   // Batch-fetch images whenever the bird list changes
   useEffect(() => {
@@ -93,11 +99,6 @@ export default function BirdList({ birds, isLoading = false, isLiveData }: BirdL
     return () => {
       cancelled = true;
     };
-  }, [birds]);
-
-  // Reset visible count when bird list changes (new search)
-  useEffect(() => {
-    setVisibleCount(PAGE_SIZE);
   }, [birds]);
 
   if (isLoading) {

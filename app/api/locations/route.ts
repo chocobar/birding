@@ -190,7 +190,11 @@ export async function GET(request: NextRequest) {
     return Response.json({ locations, isLiveData: true });
   } catch (error) {
     console.error('Failed to load nearby locations:', error);
-    // Graceful degradation: the client falls back to mock data on isLiveData=false
-    return Response.json({ locations: [], isLiveData: false }, { status: 200 });
+    // No data and no stale cache to serve: report the outage honestly so the
+    // client shows an error state instead of fabricating results.
+    return Response.json(
+      { locations: [], isLiveData: false, error: 'Location data is temporarily unavailable' },
+      { status: 502 }
+    );
   }
 }

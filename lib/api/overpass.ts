@@ -47,6 +47,26 @@ export interface OverpassElement {
 export interface OverpassResponse {
   elements?: OverpassElement[];
   remark?: string;
+  osm3s?: {
+    timestamp_osm_base?: string;
+    [key: string]: unknown;
+  };
+}
+
+/**
+ * A healthy Overpass instance reports the snapshot date of its OSM data.
+ * Responses without a plausible one come from broken or stub datasets, whose
+ * empty element lists would otherwise be indistinguishable from a genuine
+ * "nothing mapped here" answer and get cached as such.
+ */
+const MAX_DATA_SNAPSHOT_AGE_MS = 45 * 24 * 60 * 60 * 1000;
+
+function isHealthyOverpassResponse(data: OverpassResponse): boolean {
+  const timestamp = data.osm3s?.timestamp_osm_base;
+  if (!timestamp || !/^\d{4}-\d{2}-\d{2}T/.test(timestamp)) return false;
+  const snapshot = Date.parse(timestamp);
+  if (Number.isNaN(snapshot)) return false;
+  return Date.now() - snapshot <= MAX_DATA_SNAPSHOT_AGE_MS;
 }
 
 const RETRY_DELAY_MS = 1500;
@@ -101,6 +121,10 @@ export async function fetchOverpass(
 
         if (data.remark?.includes('runtime error')) {
           throw new Error(`Overpass query failed: ${data.remark}`);
+        }
+
+        if (!isHealthyOverpassResponse(data)) {
+          throw new Error('Overpass endpoint returned a response without a valid data snapshot timestamp');
         }
 
         return data;

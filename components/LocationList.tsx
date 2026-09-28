@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import LocationCard from './LocationCard';
-import { MapPin, ChevronDown } from 'lucide-react';
+import { MapPin, ChevronDown, RefreshCw } from 'lucide-react';
 import { Location } from '@/lib/types';
 
 const PAGE_SIZE = 5;
@@ -22,6 +22,9 @@ const FILTERS: Array<{ key: FilterKey; label: string }> = [
 interface LocationListProps {
   locations: Location[];
   isLoading?: boolean;
+  isError?: boolean;
+  isRetrying?: boolean;
+  onRetry?: () => void;
   postcode?: string;
 }
 
@@ -74,7 +77,14 @@ function FilterChips({
   );
 }
 
-export default function LocationList({ locations, isLoading = false, postcode }: LocationListProps) {
+export default function LocationList({
+  locations,
+  isLoading = false,
+  isError = false,
+  isRetrying = false,
+  onRetry,
+  postcode,
+}: LocationListProps) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [filter, setFilter] = useState<FilterKey>('all');
   const [prevLocations, setPrevLocations] = useState(locations);
@@ -97,6 +107,32 @@ export default function LocationList({ locations, isLoading = false, postcode }:
           {Array.from({ length: PAGE_SIZE }).map((_, index) => (
             <SkeletonCard key={index} />
           ))}
+        </div>
+      </section>
+    );
+  }
+
+  if (isError && locations.length === 0) {
+    return (
+      <section className="w-full py-12 text-center" aria-label="Error loading locations">
+        <div className="max-w-md mx-auto">
+          <MapPin className="w-14 h-14 text-[var(--brand-green-light)] mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-2">
+            Couldn&apos;t load nearby locations
+          </h3>
+          <p className="text-[var(--text-secondary)] mb-5">
+            Live location data from OpenStreetMap is temporarily unavailable. Please try again.
+          </p>
+          {onRetry && (
+            <button
+              onClick={onRetry}
+              disabled={isRetrying}
+              className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-medium text-[var(--brand-green)] bg-[var(--warm-sand)] border border-[var(--border-light)] rounded-full hover:bg-[var(--brand-green)] hover:text-white hover:border-[var(--brand-green)] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--brand-green)] focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-[var(--warm-sand)] disabled:hover:text-[var(--brand-green)] disabled:hover:border-[var(--border-light)]"
+            >
+              <RefreshCw className={`w-4 h-4 ${isRetrying ? 'animate-spin' : ''}`} />
+              {isRetrying ? 'Retrying…' : 'Try again'}
+            </button>
+          )}
         </div>
       </section>
     );

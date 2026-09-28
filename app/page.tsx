@@ -28,9 +28,7 @@ export default function Home() {
 
   const isLoadingBirds = birdQuery.isLoading;
   const isLoadingLocations = locationQuery.isLoading;
-  const error =
-    (birdQuery.error ? String(birdQuery.error) : null)
-    || (locationQuery.error ? String(locationQuery.error) : null);
+  const error = birdQuery.error ? String(birdQuery.error) : null;
   const hasSearched = locationName !== '';
 
   const birds = birdQuery.data?.birds ?? [];
@@ -105,6 +103,9 @@ export default function Home() {
             <LocationList
               locations={locations}
               isLoading={isLoadingLocations}
+              isError={locationQuery.isError}
+              isRetrying={locationQuery.isRefetching}
+              onRetry={() => locationQuery.refetch()}
               postcode={locationName}
             />
           </div>

@@ -6,39 +6,41 @@ const LOCATIONS_API_BASE = '/api/locations';
 /**
  * Fetch nearby locations for a geocoded position via the server-side proxy
  * (/api/locations), which caches results and bounds Overpass latency.
- * Falls back to mock data if the API is unavailable.
+ * Throws on failure so the UI can show an error state: fabricated "nearby"
+ * places are worse than no results.
  */
 export async function getNearbyLocations(
   latitude: number,
   longitude: number,
   radiusMiles: number = 5
 ): Promise<Location[]> {
+  const params = new URLSearchParams({
+    lat: latitude.toString(),
+    lng: longitude.toString(),
+    radius: radiusMiles.toString(),
+  });
+
+  let response: Response;
   try {
-    const params = new URLSearchParams({
-      lat: latitude.toString(),
-      lng: longitude.toString(),
-      radius: radiusMiles.toString(),
-    });
-
-    const response = await fetch(`${LOCATIONS_API_BASE}?${params.toString()}`);
-
-    if (!response.ok) {
-      console.error(`/api/locations returned ${response.status}`);
-      return getMockLocations(latitude, longitude);
-    }
-
-    const data = await response.json();
-
-    // Server couldn't reach Overpass — use mock data
-    if (!data.isLiveData || !Array.isArray(data.locations)) {
-      return getMockLocations(latitude, longitude);
-    }
-
-    return data.locations as Location[];
+    response = await fetch(`${LOCATIONS_API_BASE}?${params.toString()}`);
   } catch (error) {
     console.error('Error fetching locations from /api/locations:', error);
-    return getMockLocations(latitude, longitude);
+    throw new Error('Could not load nearby locations. Please check your connection and try again.');
   }
+
+  if (!response.ok) {
+    console.error(`/api/locations returned ${response.status}`);
+    throw new Error('Nearby location data is temporarily unavailable. Please try again shortly.');
+  }
+
+  const data = await response.json();
+
+  // Server could not reach Overpass — surface the failure rather than faking results
+  if (!data.isLiveData || !Array.isArray(data.locations)) {
+    throw new Error('Nearby location data is temporarily unavailable. Please try again shortly.');
+  }
+
+  return data.locations as Location[];
 }
 
 /**
@@ -70,74 +72,4 @@ export async function getRouteGeometry(relationId: number): Promise<[number, num
   }
 
   return points;
-}
-
-/**
- * Mock locations as fallback when API is unavailable
- */
-function getMockLocations(latitude: number, longitude: number): Location[] {
-  return [
-    {
-      id: 'mock-1',
-      name: 'Local Nature Reserve',
-      type: 'nature_reserve',
-      latitude: latitude + 0.01,
-      longitude: longitude + 0.01,
-      distance: 1.2,
-      description: 'Protected nature reserve with diverse habitats',
-      tags: ['nature_reserve'],
-    },
-    {
-      id: 'mock-2',
-      name: 'River Walk',
-      type: 'water',
-      latitude: latitude + 0.02,
-      longitude: longitude - 0.01,
-      distance: 1.8,
-      description: 'Natural water body - ideal for waterfowl and wetland bird species',
-      tags: ['river', 'water'],
-    },
-    {
-      id: 'mock-3',
-      name: 'Community Woodland',
-      type: 'woodland',
-      latitude: latitude - 0.01,
-      longitude: longitude + 0.02,
-      distance: 2.3,
-      description: 'Wooded area - great for woodland birds and wildlife',
-      tags: ['woodland', 'forest'],
-    },
-    {
-      id: 'mock-4',
-      name: 'City Park',
-      type: 'park',
-      latitude: latitude + 0.015,
-      longitude: longitude + 0.015,
-      distance: 1.5,
-      description: 'Public park with green spaces and nature areas',
-      tags: ['park'],
-    },
-    {
-      id: 'mock-5',
-      name: 'Woodland Trail',
-      type: 'trail',
-      latitude: latitude - 0.02,
-      longitude: longitude - 0.02,
-      distance: 3.1,
-      description: 'Walking trail - good for bird watching on foot',
-      tags: ['footway', 'trail'],
-    },
-    {
-      id: 'mock-6',
-      name: 'Riverside Circular Walk',
-      type: 'route',
-      latitude: latitude + 0.005,
-      longitude: longitude - 0.005,
-      distance: 2.7,
-      description: 'Local waymarked walk - often a circular route',
-      tags: ['hiking', 'lwn'],
-      osmRelationId: 5223120,
-      network: 'lwn',
-    },
-  ];
 }

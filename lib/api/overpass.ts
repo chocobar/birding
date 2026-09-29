@@ -1,10 +1,28 @@
 import { Location } from '@/lib/types';
 import { calculateDistance } from '@/lib/utils/distanceCalculator';
 
-export const OVERPASS_ENDPOINTS = [
+/**
+ * Query endpoints, tried in order. OVERPASS_ENDPOINTS (comma-separated full
+ * interpreter URLs) overrides the defaults, e.g. to point at a private
+ * instance; anything configured always takes priority and the public
+ * instances stay listed as fallbacks so an outage on either side degrades
+ * to the other.
+ */
+const DEFAULT_OVERPASS_ENDPOINTS = [
   'https://overpass-api.de/api/interpreter',
   'https://overpass.kumi.systems/api/interpreter',
 ];
+
+function loadOverpassEndpoints(): string[] {
+  const configured = (process.env.OVERPASS_ENDPOINTS ?? '')
+    .split(',')
+    .map((url) => url.trim())
+    .filter((url) => /^https?:\/\//.test(url));
+  if (configured.length === 0) return DEFAULT_OVERPASS_ENDPOINTS;
+  return [...new Set([...configured, ...DEFAULT_OVERPASS_ENDPOINTS])];
+}
+
+export const OVERPASS_ENDPOINTS = loadOverpassEndpoints();
 
 // Overpass usage policy: identify the application
 const OVERPASS_USER_AGENT = 'BirdingDiscovery/0.1.0 (https://github.com/chocobar/birding)';
@@ -214,7 +232,20 @@ export async function fetchOverpass(
 
         const data = (await response.json()) as OverpassResponse;
 
+        // A server-side timeout arrives as a 200 with a `remark` rather than
+        // an error status. Overpass prints every statement that completed
+        // before the timeout, so a non-empty element list is usable partial
+        // data: discarding it would not only throw away 25-30s of server
+        // work but also trigger retries that re-queue equally slow queries
+        // behind a server that just proved it cannot run them. Empty
+        // responses are still failures — they would otherwise be cached as a
+        // genuine "nothing mapped here" answer.
         if (data.remark?.includes('runtime error')) {
+          if ((data.elements?.length ?? 0) > 0) {
+            console.warn(`Overpass returned partial results (server-side timeout): ${data.remark}`);
+            noteEndpointSuccess(endpoint);
+            return data;
+          }
           throw new Error(`Overpass query failed: ${data.remark}`);
         }
 
@@ -268,16 +299,19 @@ export async function fetchOverpass(
 }
 
 /**
- * One query per feature category. Overpass prints results in element-id
- * order, not distance order, and evaluates a union's statements sequentially
- * within a single request budget: a shared `out ... 80` cap lets high-volume
- * categories (small water bodies, river segments) fill it with
- * arbitrarily-picked elements and crowd nearer parks and woodlands out of the
- * results entirely, and one slow statement can time out a whole union.
- * Splitting gives each category its own budget and its own failure isolation
- * on the public servers.
+ * Greens and water stay in separate requests because they are the critical
+ * content of the list. Overpass prints results in element-id order, not
+ * distance order, and a shared `out ... N` cap would let high-volume
+ * categories fill it with arbitrarily-picked elements, crowding nearer
+ * parks and woodlands out of the results entirely — so the critical queries
+ * are uncapped and carry no statement that can be slow enough to time the
+ * whole request out. Slower or purely decorative categories are consolidated
+ * into fewer, capped requests (see buildReservesAndTrailsQuery and
+ * buildRelationsQuery) to limit the number of round trips through the
+ * congested public servers; their caps are safe because each prints through
+ * its own `out` statement.
  *
- * Category queries are uncapped so the nearest features always make it;
+ * The critical queries are uncapped so the nearest features always make it;
  * payloads stay small because every statement requires a name tag and
  * `out center tags` omits full geometry.
  */
@@ -297,11 +331,15 @@ export function buildGreensQuery(latitude: number, longitude: number, radiusMete
 }
 
 /**
- * Nature reserves sit in their own request: their statements are among the
- * slowest on the public Overpass instances under load, and their failure
- * should not take parks and woodlands down with them.
+ * Nature reserves and named paths share one request: both are decorative
+ * categories whose failure must not delay the list. Reserves are a cheap
+ * scan (few matches at any radius) and print first; named path/footway ways
+ * fragment into thousands of tiny segments in urban areas (6,000+ within
+ * 5 miles of central London) so they are capped and de-duplicated by name
+ * in parseOverpassElements. If the trails statement times out, the reserve
+ * block still arrives as a partial result, which fetchOverpass accepts.
  */
-export function buildNatureReservesQuery(latitude: number, longitude: number, radiusMeters: number): string {
+export function buildReservesAndTrailsQuery(latitude: number, longitude: number, radiusMeters: number): string {
   const around = `around:${radiusMeters},${latitude},${longitude}`;
   return `
     [out:json][timeout:25];
@@ -309,30 +347,27 @@ export function buildNatureReservesQuery(latitude: number, longitude: number, ra
       node["leisure"="nature_reserve"]["name"](${around});
       way["leisure"="nature_reserve"]["name"](${around});
     );
-    out center tags;
-  `;
-}
-
-export function buildWaterQuery(latitude: number, longitude: number, radiusMeters: number): string {
-  const around = `around:${radiusMeters},${latitude},${longitude}`;
-  return `
-    [out:json][timeout:25];
+    out center tags 200;
     (
-      node["natural"="water"]["name"](${around});
-      way["natural"="water"]["name"](${around});
-      way["waterway"~"river|stream|canal"]["name"](${around});
+      way["highway"="path"]["name"](${around});
+      way["highway"="footway"]["name"](${around});
     );
-    out center tags;
+    out center tags 100;
   `;
 }
 
 /**
- * Large green spaces are often mapped as multipolygon relations (commons,
- * heaths, country parks) which the node/way statements cannot match.
- * Relation `around` queries are slow on Overpass, so they run as their own
- * capped request instead of being folded into the other queries.
+ * All relation queries share one request. Relation `around` is the most
+ * expensive kind of Overpass lookup (it resolves member geometry), so these
+ * are the queries most likely to time out or 504 on the public instances;
+ * they are best-effort, grace-raced by the caller, and capped. Large green
+ * spaces are often mapped as multipolygon relations (commons, heaths,
+ * country parks) which the node/way statements cannot match, and named
+ * walking routes are pure decoration. If the route statement times out, the
+ * green-space block still arrives as a partial result, which fetchOverpass
+ * accepts.
  */
-export function buildGreenRelationsQuery(latitude: number, longitude: number, radiusMeters: number): string {
+export function buildRelationsQuery(latitude: number, longitude: number, radiusMeters: number): string {
   const around = `around:${radiusMeters},${latitude},${longitude}`;
   return `
     [out:json][timeout:25];
@@ -343,36 +378,27 @@ export function buildGreenRelationsQuery(latitude: number, longitude: number, ra
       relation["natural"="water"]["name"](${around});
     );
     out center tags 60;
+    relation["type"="route"]["route"~"hiking|foot|walking"]["name"](${around});
+    out center tags 30;
   `;
 }
 
-/**
- * Named path/footway ways fragment into thousands of tiny segments in urban
- * areas (6,000+ within 5 miles of central London), so they get a capped
- * budget of their own and are de-duplicated by name in parseOverpassElements.
- */
-export function buildTrailsQuery(latitude: number, longitude: number, radiusMeters: number): string {
+export function buildWaterQuery(latitude: number, longitude: number, radiusMeters: number): string {
   const around = `around:${radiusMeters},${latitude},${longitude}`;
+  // Exact key=value statements instead of a waterway value regex: Overpass
+  // answers each from its (key,value) index directly, whereas a regex has to
+  // fetch every waterway=* element in the radius before filtering — enough
+  // extra work to push the query past the public servers' timeout under load.
   return `
     [out:json][timeout:25];
     (
-      way["highway"="path"]["name"](${around});
-      way["highway"="footway"]["name"](${around});
+      node["natural"="water"]["name"](${around});
+      way["natural"="water"]["name"](${around});
+      way["waterway"="river"]["name"](${around});
+      way["waterway"="stream"]["name"](${around});
+      way["waterway"="canal"]["name"](${around});
     );
-    out center tags 60;
-  `;
-}
-
-/**
- * Build the best-effort query for named walking route relations.
- * `around` on relations is expensive on Overpass (it resolves member geometry)
- * and this query is the most likely to 504, so callers must treat it as optional.
- */
-export function buildRoutesQuery(latitude: number, longitude: number, radiusMeters: number): string {
-  return `
-    [out:json][timeout:25];
-    relation["type"="route"]["route"~"hiking|foot|walking"]["name"](around:${radiusMeters},${latitude},${longitude});
-    out center tags 30;
+    out center tags;
   `;
 }
 

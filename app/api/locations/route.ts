@@ -19,11 +19,66 @@ const MILES_TO_METERS = 1609.34;
 
 // Greens and water are the critical content of the list; everything else is
 // best-effort decoration that must never delay rendering.
-const CRITICAL_OPTS: OverpassFetchOptions = { timeoutMs: 15000, attemptsPerEndpoint: 2, deadlineMs: 30000 };
-const BEST_EFFORT_OPTS: OverpassFetchOptions = { timeoutMs: 12000, attemptsPerEndpoint: 2, deadlineMs: 25000 };
+//
+// Under load the public Overpass instances queue a query for 10-20s before it
+// starts executing, so a 15s per-attempt timeout kills requests that would
+// have succeeded seconds later (queries observed succeeding at 21-28s). The
+// attempt window is therefore generous; the overall deadline still bounds the
+// caller's wait.
+const CRITICAL_OPTS: OverpassFetchOptions = { timeoutMs: 30000, attemptsPerEndpoint: 2, deadlineMs: 35000 };
+const BEST_EFFORT_OPTS: OverpassFetchOptions = { timeoutMs: 15000, attemptsPerEndpoint: 2, deadlineMs: 25000 };
 const ROUTES_OPTS: OverpassFetchOptions = { timeoutMs: 8000, attemptsPerEndpoint: 1, deadlineMs: 15000 };
 // Never delay the results list for the best-effort group longer than this.
 const BEST_EFFORT_GRACE_MS = 12000;
+
+// The public Overpass instances cap clients at a handful of concurrent
+// requests (overpass-api.de currently allows 4 per IP) and reply "too busy"
+// 504s beyond that. A burst of six parallel queries self-inflicts those 504s
+// even when each query would succeed on its own, so all Overpass work is
+// funneled through this global two-slot gate.
+const MAX_OVERPASS_CONCURRENCY = 2;
+
+let activeSlots = 0;
+const slotWaiters: Array<{
+  resolve: (release: () => void) => void;
+  reject: (reason?: unknown) => void;
+  onAbort: () => void;
+}> = [];
+
+function releaseSlot(): void {
+  const next = slotWaiters.shift();
+  if (next) {
+    next.resolve(releaseSlot);
+  } else {
+    activeSlots -= 1;
+  }
+}
+
+async function acquireOverpassSlot(signal?: AbortSignal): Promise<() => void> {
+  if (signal?.aborted) throw abortError();
+
+  if (activeSlots < MAX_OVERPASS_CONCURRENCY) {
+    activeSlots += 1;
+    return releaseSlot;
+  }
+
+  return new Promise((resolve, reject) => {
+    const onAbort = () => {
+      const index = slotWaiters.findIndex((waiter) => waiter.onAbort === onAbort);
+      if (index >= 0) slotWaiters.splice(index, 1);
+      reject(signal!.reason ?? abortError());
+    };
+    slotWaiters.push({
+      resolve: (release) => {
+        signal?.removeEventListener('abort', onAbort);
+        resolve(release);
+      },
+      reject,
+      onAbort,
+    });
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
+}
 
 const CACHE_TTL_MS = 10 * 60 * 1000; // fresh results served for 10 minutes
 const STALE_TTL_MS = 24 * 60 * 60 * 1000; // stale results served if Overpass fails
@@ -37,6 +92,10 @@ interface CacheEntry {
 
 const cache = new Map<string, CacheEntry>();
 const inflight = new Map<string, Promise<Location[]>>();
+
+function abortError(): Error {
+  return new DOMException('Aborted', 'AbortError');
+}
 
 function cacheKey(lat: number, lng: number, radiusMiles: number): string {
   // ~110m grid: near-identical searches share a cache entry
@@ -56,9 +115,18 @@ function getCached(key: string): CacheEntry | undefined {
 async function loadLocations(latitude: number, longitude: number, radiusMiles: number): Promise<Location[]> {
   const radiusMeters = radiusMiles * MILES_TO_METERS;
 
-  const fetchElements = async (query: string, opts: OverpassFetchOptions): Promise<OverpassElement[]> => {
-    const data = await fetchOverpass(query, opts);
-    return data.elements ?? [];
+  const fetchElements = async (
+    query: string,
+    opts: OverpassFetchOptions,
+    signal?: AbortSignal
+  ): Promise<OverpassElement[]> => {
+    const release = await acquireOverpassSlot(signal);
+    try {
+      const data = await fetchOverpass(query, { ...opts, signal });
+      return data.elements ?? [];
+    } finally {
+      release();
+    }
   };
 
   // One query per feature category (see overpass.ts for why a single shared
@@ -67,17 +135,30 @@ async function loadLocations(latitude: number, longitude: number, radiusMiles: n
   // reserves, green-space relations, trails and walking routes are fragile
   // and/or high-latency on the public Overpass servers, so they are raced
   // against a short grace timer: if they have not finished in time the list
-  // is served without them instead of blocking on them.
+  // is served without them instead of blocking on them. All queries share the
+  // two-slot Overpass gate, critical first, so the burst of concurrent
+  // requests that used to trip the servers' per-client limits is gone; the
+  // grace timer and critical failure abort whatever best-effort work is still
+  // queued or in flight so abandoned queries never hold Overpass slots.
+  const bestEffortAbort = new AbortController();
+
   const criticalPromise = Promise.all([
     fetchElements(buildGreensQuery(latitude, longitude, radiusMeters), CRITICAL_OPTS),
     fetchElements(buildWaterQuery(latitude, longitude, radiusMeters), CRITICAL_OPTS),
   ]);
+  // The critical queries are awaited below, but if they reject while the
+  // grace race is still pending nobody is attached yet — silence the
+  // resulting unhandled-rejection warning.
+  criticalPromise.catch(() => {});
 
+  const bestEffortSignal = bestEffortAbort.signal;
   const bestEffortPromise = Promise.allSettled([
-    fetchElements(buildNatureReservesQuery(latitude, longitude, radiusMeters), BEST_EFFORT_OPTS),
-    fetchElements(buildGreenRelationsQuery(latitude, longitude, radiusMeters), BEST_EFFORT_OPTS),
-    fetchElements(buildTrailsQuery(latitude, longitude, radiusMeters), BEST_EFFORT_OPTS),
-    fetchElements(buildRoutesQuery(latitude, longitude, radiusMeters), ROUTES_OPTS),
+    // Fastest and most distinctive first: slot hand-off order decides what
+    // fits inside the grace window.
+    fetchElements(buildRoutesQuery(latitude, longitude, radiusMeters), ROUTES_OPTS, bestEffortSignal),
+    fetchElements(buildGreenRelationsQuery(latitude, longitude, radiusMeters), BEST_EFFORT_OPTS, bestEffortSignal),
+    fetchElements(buildTrailsQuery(latitude, longitude, radiusMeters), BEST_EFFORT_OPTS, bestEffortSignal),
+    fetchElements(buildNatureReservesQuery(latitude, longitude, radiusMeters), BEST_EFFORT_OPTS, bestEffortSignal),
   ]).then((results) =>
     results.flatMap((result) => (result.status === 'fulfilled' ? result.value : []))
   );
@@ -85,7 +166,10 @@ async function loadLocations(latitude: number, longitude: number, radiusMiles: n
   const bestEffort = await Promise.race([
     bestEffortPromise,
     new Promise<OverpassElement[]>((resolve) =>
-      setTimeout(() => resolve([]), BEST_EFFORT_GRACE_MS)
+      setTimeout(() => {
+        bestEffortAbort.abort();
+        resolve([]);
+      }, BEST_EFFORT_GRACE_MS)
     ),
   ]);
 
@@ -95,6 +179,7 @@ async function loadLocations(latitude: number, longitude: number, radiusMiles: n
   } catch (error) {
     // Both critical queries failed. If some best-effort data did arrive in
     // time, serve that rather than discarding real results for mock data.
+    bestEffortAbort.abort();
     if (bestEffort.length === 0) {
       throw error;
     }

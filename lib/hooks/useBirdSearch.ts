@@ -18,12 +18,18 @@ export function useBirdSearch(latitude: number | null, longitude: number | null)
 
 /**
  * Fetch nearby locations for a geocoded position. Cached by lat/lng.
+ *
+ * No automatic retry: the server already retries across Overpass endpoints
+ * and bounds its own worst case at ~35s, so a client-side retry would only
+ * double the skeleton-screen wait before the error state (which has its own
+ * explicit "Try again" button) appears.
  */
 export function useLocationSearch(latitude: number | null, longitude: number | null) {
   return useQuery<Location[]>({
     queryKey: ['locations', latitude, longitude],
     queryFn: () => getNearbyLocations(latitude!, longitude!),
     enabled: latitude !== null && longitude !== null,
+    retry: 0,
   });
 }
 

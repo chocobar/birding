@@ -16,6 +16,8 @@ export interface OverpassFetchOptions {
   attemptsPerEndpoint?: number;
   /** Overall budget across all attempts and endpoints */
   deadlineMs?: number;
+  /** Cooperative cancellation: stops retrying and in-flight attempts immediately */
+  signal?: AbortSignal;
 }
 
 export interface OverpassElement {
@@ -70,15 +72,90 @@ function isHealthyOverpassResponse(data: OverpassResponse): boolean {
 }
 
 const RETRY_DELAY_MS = 1500;
+const MAX_RETRY_DELAY_MS = 6000;
+
+/**
+ * Circuit breaker for the public mirrors. A mirror that accepts connections
+ * but never answers (as overpass.kumi.systems has done for extended periods)
+ * costs every failed query its full per-attempt timeout, stretching one user
+ * request across the whole deadline. Endpoints are skipped for a cooldown
+ * after repeated zero-response attempts; HTTP status errors prove the
+ * endpoint is alive and do not count towards the threshold.
+ */
+const BREAKER_HANG_THRESHOLD = 2;
+const BREAKER_COOLDOWN_MS = 5 * 60 * 1000;
+
+interface EndpointHealth {
+  consecutiveHangs: number;
+  blockedUntil: number;
+}
+
+const endpointHealth = new Map<string, EndpointHealth>();
+
+function isEndpointBlocked(endpoint: string): boolean {
+  const health = endpointHealth.get(endpoint);
+  return !!health && health.blockedUntil > Date.now();
+}
+
+function noteEndpointSuccess(endpoint: string): void {
+  endpointHealth.delete(endpoint);
+}
+
+function noteEndpointHttpError(endpoint: string): void {
+  const health = endpointHealth.get(endpoint);
+  if (health) health.consecutiveHangs = 0;
+}
+
+function noteEndpointHang(endpoint: string): void {
+  const health = endpointHealth.get(endpoint) ?? { consecutiveHangs: 0, blockedUntil: 0 };
+  health.consecutiveHangs += 1;
+  if (health.consecutiveHangs >= BREAKER_HANG_THRESHOLD) {
+    health.blockedUntil = Date.now() + BREAKER_COOLDOWN_MS;
+  }
+  endpointHealth.set(endpoint, health);
+}
+
+/** A timeout or connection-level failure means the endpoint never answered. */
+function isHang(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.name === 'TimeoutError' || error.name === 'TypeError' || error.name === 'AbortError')
+  );
+}
+
+/** 429-style rejection carrying the server's own retry guidance. */
+class OverpassRateLimitError extends Error {
+  constructor(
+    readonly status: number,
+    readonly retryAfterMs: number | undefined
+  ) {
+    super(`Overpass API rate limited: ${status}`);
+  }
+}
+
+function parseRetryAfter(headerValue: string | null): number | undefined {
+  if (!headerValue) return undefined;
+  const seconds = Number.parseInt(headerValue, 10);
+  if (Number.isNaN(seconds) || seconds <= 0) return undefined;
+  return seconds * 1000;
+}
+
+function abortError(): Error {
+  return new DOMException('Aborted', 'AbortError');
+}
 
 /**
  * Fetch an Overpass query, retrying across endpoints. The public Overpass
  * servers intermittently 504 or hang under load, so every attempt is bounded
  * by `timeoutMs` and the whole loop by `deadlineMs`, guaranteeing the caller
- * gets an answer (or an error) within a known time. When a query exceeds its
- * server-side timeout Overpass answers 200 with an empty element list plus a
- * `remark` instead of an error status; that must retry (and ultimately fail)
- * rather than return empty results that would get cached.
+ * gets an answer (or an error) within a known time. Retries back off
+ * exponentially, and rate-limit responses wait out the server's `Retry-After`
+ * before moving to the next endpoint. Endpoints that repeatedly hang without
+ * responding are skipped for a cooldown (see the circuit breaker). When a
+ * query exceeds its server-side timeout Overpass answers 200 with an empty
+ * element list plus a `remark` instead of an error status; that must retry
+ * (and ultimately fail) rather than return empty results that would get
+ * cached.
  */
 export async function fetchOverpass(
   query: string,
@@ -88,13 +165,20 @@ export async function fetchOverpass(
     timeoutMs = 15000,
     attemptsPerEndpoint = 2,
     deadlineMs = Number.POSITIVE_INFINITY,
+    signal,
   } = options;
+
+  if (signal?.aborted) throw abortError();
 
   const start = Date.now();
   let lastError: unknown;
 
   for (const endpoint of OVERPASS_ENDPOINTS) {
+    if (isEndpointBlocked(endpoint)) continue;
+
     for (let attempt = 0; attempt < attemptsPerEndpoint; attempt++) {
+      if (signal?.aborted) throw abortError();
+
       const remaining = deadlineMs - (Date.now() - start);
       if (remaining <= 0) {
         throw lastError instanceof Error
@@ -103,6 +187,11 @@ export async function fetchOverpass(
       }
 
       try {
+        const attemptSignal = AbortSignal.any([
+          AbortSignal.timeout(Math.min(timeoutMs, remaining)),
+          ...(signal ? [signal] : []),
+        ]);
+
         const response = await fetch(endpoint, {
           method: 'POST',
           headers: {
@@ -110,10 +199,16 @@ export async function fetchOverpass(
             'User-Agent': OVERPASS_USER_AGENT,
           },
           body: `data=${encodeURIComponent(query)}`,
-          signal: AbortSignal.timeout(Math.min(timeoutMs, remaining)),
+          signal: attemptSignal,
         });
 
         if (!response.ok) {
+          if (response.status === 429 || response.status === 503) {
+            throw new OverpassRateLimitError(
+              response.status,
+              parseRetryAfter(response.headers.get('retry-after'))
+            );
+          }
           throw new Error(`Overpass API error: ${response.status}`);
         }
 
@@ -127,14 +222,44 @@ export async function fetchOverpass(
           throw new Error('Overpass endpoint returned a response without a valid data snapshot timestamp');
         }
 
+        noteEndpointSuccess(endpoint);
         return data;
       } catch (error) {
+        // Cancellation is not an endpoint failure: stop immediately and do
+        // not let it trigger the circuit breaker.
+        if (signal?.aborted) {
+          throw error instanceof Error && error.name === 'AbortError'
+            ? error
+            : abortError();
+        }
+
         lastError = error;
+
+        if (isHang(error)) noteEndpointHang(endpoint);
+        else noteEndpointHttpError(endpoint);
+
+        if (error instanceof OverpassRateLimitError) {
+          // The endpoint is alive but out of slots for us; wait out its
+          // guidance if it fits the deadline, then try the next one.
+          const remainingAfter = deadlineMs - (Date.now() - start);
+          const wait = error.retryAfterMs
+            ? Math.min(error.retryAfterMs, remainingAfter)
+            : Math.min(RETRY_DELAY_MS, remainingAfter);
+          if (wait > 0) {
+            await new Promise((resolve) => setTimeout(resolve, wait));
+          }
+          break;
+        }
+
         const remainingAfter = deadlineMs - (Date.now() - start);
         if (remainingAfter <= 0) break;
-        await new Promise((resolve) =>
-          setTimeout(resolve, Math.min(RETRY_DELAY_MS, remainingAfter))
+
+        const backoff = Math.min(
+          RETRY_DELAY_MS * 2 ** attempt,
+          MAX_RETRY_DELAY_MS,
+          remainingAfter
         );
+        await new Promise((resolve) => setTimeout(resolve, backoff));
       }
     }
   }

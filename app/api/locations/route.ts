@@ -3,11 +3,9 @@ import { Location } from '@/lib/types';
 import {
   fetchOverpass,
   buildGreensQuery,
-  buildNatureReservesQuery,
   buildWaterQuery,
-  buildGreenRelationsQuery,
-  buildTrailsQuery,
-  buildRoutesQuery,
+  buildReservesAndTrailsQuery,
+  buildRelationsQuery,
   parseOverpassElements,
   OverpassElement,
   OverpassFetchOptions,
@@ -27,7 +25,6 @@ const MILES_TO_METERS = 1609.34;
 // caller's wait.
 const CRITICAL_OPTS: OverpassFetchOptions = { timeoutMs: 30000, attemptsPerEndpoint: 2, deadlineMs: 35000 };
 const BEST_EFFORT_OPTS: OverpassFetchOptions = { timeoutMs: 15000, attemptsPerEndpoint: 2, deadlineMs: 25000 };
-const ROUTES_OPTS: OverpassFetchOptions = { timeoutMs: 8000, attemptsPerEndpoint: 1, deadlineMs: 15000 };
 // Never delay the results list for the best-effort group longer than this.
 const BEST_EFFORT_GRACE_MS = 12000;
 
@@ -81,13 +78,18 @@ async function acquireOverpassSlot(signal?: AbortSignal): Promise<() => void> {
 }
 
 const CACHE_TTL_MS = 10 * 60 * 1000; // fresh results served for 10 minutes
-const STALE_TTL_MS = 24 * 60 * 60 * 1000; // stale results served if Overpass fails
+const STALE_TTL_MS = 24 * 60 * 60 * 1000; // stale results served while revalidating or if Overpass fails
 const MAX_CACHE_ENTRIES = 500;
+// After a failed background revalidation, wait this long before trying again:
+// a struggling Overpass must not receive a fresh query on every request.
+const REVALIDATE_COOLDOWN_MS = 60 * 1000;
 
 interface CacheEntry {
   locations: Location[];
   freshUntil: number;
   keepUntil: number;
+  /** Until this time a failed background refresh suppresses further revalidation */
+  retryAfter?: number;
 }
 
 const cache = new Map<string, CacheEntry>();
@@ -129,17 +131,17 @@ async function loadLocations(latitude: number, longitude: number, radiusMiles: n
     }
   };
 
-  // One query per feature category (see overpass.ts for why a single shared
-  // result cap must never be used: it lets water crowd the nearest parks out).
-  // Greens and water are the core of the list and are awaited; nature
-  // reserves, green-space relations, trails and walking routes are fragile
-  // and/or high-latency on the public Overpass servers, so they are raced
-  // against a short grace timer: if they have not finished in time the list
-  // is served without them instead of blocking on them. All queries share the
+  // Greens and water are the core of the list and are awaited; reserves,
+  // trails, green-space relations and walking routes are decoration that is
+  // fragile and/or high-latency on the public Overpass servers, so their two
+  // consolidated queries (see overpass.ts for why the critical pair stays
+  // separate and the decoration pair is shared) are raced against a short
+  // grace timer: if they have not finished in time the list is served
+  // without them instead of blocking on them. All queries share the
   // two-slot Overpass gate, critical first, so the burst of concurrent
   // requests that used to trip the servers' per-client limits is gone; the
-  // grace timer and critical failure abort whatever best-effort work is still
-  // queued or in flight so abandoned queries never hold Overpass slots.
+  // grace timer and critical failure abort whatever best-effort work is
+  // still queued or in flight so abandoned queries never hold Overpass slots.
   const bestEffortAbort = new AbortController();
 
   const criticalPromise = Promise.all([
@@ -153,12 +155,10 @@ async function loadLocations(latitude: number, longitude: number, radiusMiles: n
 
   const bestEffortSignal = bestEffortAbort.signal;
   const bestEffortPromise = Promise.allSettled([
-    // Fastest and most distinctive first: slot hand-off order decides what
-    // fits inside the grace window.
-    fetchElements(buildRoutesQuery(latitude, longitude, radiusMeters), ROUTES_OPTS, bestEffortSignal),
-    fetchElements(buildGreenRelationsQuery(latitude, longitude, radiusMeters), BEST_EFFORT_OPTS, bestEffortSignal),
-    fetchElements(buildTrailsQuery(latitude, longitude, radiusMeters), BEST_EFFORT_OPTS, bestEffortSignal),
-    fetchElements(buildNatureReservesQuery(latitude, longitude, radiusMeters), BEST_EFFORT_OPTS, bestEffortSignal),
+    // Cheapest scan first: slot hand-off order decides what fits inside the
+    // grace window.
+    fetchElements(buildReservesAndTrailsQuery(latitude, longitude, radiusMeters), BEST_EFFORT_OPTS, bestEffortSignal),
+    fetchElements(buildRelationsQuery(latitude, longitude, radiusMeters), BEST_EFFORT_OPTS, bestEffortSignal),
   ]).then((results) =>
     results.flatMap((result) => (result.status === 'fulfilled' ? result.value : []))
   );
@@ -196,6 +196,48 @@ async function loadLocations(latitude: number, longitude: number, radiusMiles: n
   );
 }
 
+/**
+ * Start (or join) an Overpass load for a cache key and store the result on
+ * success. A failed refresh stamps a cooldown on the existing entry so
+ * stale-while-revalidate callers stop re-querying a struggling Overpass on
+ * every request until it has had time to recover.
+ */
+function startRefresh(key: string, latitude: number, longitude: number, radiusMiles: number): Promise<Location[]> {
+  const existing = inflight.get(key);
+  if (existing) return existing;
+
+  const promise = loadLocations(latitude, longitude, radiusMiles)
+    .then((locations) => {
+      const now = Date.now();
+      cache.set(key, {
+        locations,
+        freshUntil: now + CACHE_TTL_MS,
+        keepUntil: now + STALE_TTL_MS,
+      });
+      if (cache.size > MAX_CACHE_ENTRIES) {
+        const oldest = cache.keys().next().value;
+        if (oldest) cache.delete(oldest);
+      }
+      return locations;
+    })
+    .catch((error) => {
+      const entry = cache.get(key);
+      if (entry) cache.set(key, { ...entry, retryAfter: Date.now() + REVALIDATE_COOLDOWN_MS });
+      throw error;
+    })
+    .finally(() => inflight.delete(key));
+  inflight.set(key, promise);
+  return promise;
+}
+
+function revalidateStale(key: string, latitude: number, longitude: number, radiusMiles: number, entry: CacheEntry): void {
+  if (inflight.has(key)) return;
+  if (entry.retryAfter && Date.now() < entry.retryAfter) return;
+  // Fire-and-forget: startRefresh rejects are handled here; the cold path
+  // below awaits its own refresh directly.
+  startRefresh(key, latitude, longitude, radiusMiles).catch(() => {});
+}
+
 async function getLocationsCached(latitude: number, longitude: number, radiusMiles: number): Promise<Location[]> {
   const key = cacheKey(latitude, longitude, radiusMiles);
   const entry = getCached(key);
@@ -204,28 +246,17 @@ async function getLocationsCached(latitude: number, longitude: number, radiusMil
     return entry.locations;
   }
 
-  let promise = inflight.get(key);
-  if (!promise) {
-    promise = loadLocations(latitude, longitude, radiusMiles)
-      .then((locations) => {
-        const now = Date.now();
-        cache.set(key, {
-          locations,
-          freshUntil: now + CACHE_TTL_MS,
-          keepUntil: now + STALE_TTL_MS,
-        });
-        if (cache.size > MAX_CACHE_ENTRIES) {
-          const oldest = cache.keys().next().value;
-          if (oldest) cache.delete(oldest);
-        }
-        return locations;
-      })
-      .finally(() => inflight.delete(key));
-    inflight.set(key, promise);
+  if (entry) {
+    // Stale-while-revalidate: parks, water and trails change on OSM
+    // timescales (weeks), so a stale list served instantly beats a fresh
+    // one that costs 10-35s of public-server queueing. Revalidate in the
+    // background unless a recent refresh failed.
+    revalidateStale(key, latitude, longitude, radiusMiles, entry);
+    return entry.locations;
   }
 
   try {
-    return await promise;
+    return await startRefresh(key, latitude, longitude, radiusMiles);
   } catch (error) {
     console.error('Error fetching locations from Overpass API:', error);
     // Serve stale data rather than nothing when Overpass is unavailable

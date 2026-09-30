@@ -53,6 +53,8 @@ export interface OverpassElement {
     role?: string;
     geometry?: Array<{ lat: number; lon: number } | null>;
   }>;
+  /** Way node coordinates, present when the element was fetched with `out geom` */
+  geometry?: Array<{ lat: number; lon: number } | null>;
   tags?: {
     name?: string;
     natural?: string;
@@ -333,11 +335,14 @@ export function buildGreensQuery(latitude: number, longitude: number, radiusMete
 /**
  * Nature reserves and named paths share one request: both are decorative
  * categories whose failure must not delay the list. Reserves are a cheap
- * scan (few matches at any radius) and print first; named path/footway ways
+ * scan (few matches at any radius) and print first; named path ways
  * fragment into thousands of tiny segments in urban areas (6,000+ within
  * 5 miles of central London) so they are capped and de-duplicated by name
  * in parseOverpassElements. If the trails statement times out, the reserve
  * block still arrives as a partial result, which fetchOverpass accepts.
+ *
+ * `highway=path` only: footways are urban pavements and passages (sidewalk
+ * links, alley cut-throughs), not birding trails, so they are not fetched.
  */
 export function buildReservesAndTrailsQuery(latitude: number, longitude: number, radiusMeters: number): string {
   const around = `around:${radiusMeters},${latitude},${longitude}`;
@@ -348,10 +353,7 @@ export function buildReservesAndTrailsQuery(latitude: number, longitude: number,
       way["leisure"="nature_reserve"]["name"](${around});
     );
     out center tags 200;
-    (
-      way["highway"="path"]["name"](${around});
-      way["highway"="footway"]["name"](${around});
-    );
+    way["highway"="path"]["name"](${around});
     out center tags 100;
   `;
 }
@@ -474,6 +476,7 @@ function parseOverpassElement(
     description: generateDescription(tags, type),
     tags: extractTags(tags),
     osmRelationId: element.type === 'relation' ? element.id : undefined,
+    osmWayId: element.type === 'way' ? element.id : undefined,
     network,
     surface: tags?.surface || undefined,
     website: tags?.website || undefined,
@@ -502,7 +505,7 @@ function determineLocationType(tags: OverpassElement['tags']): Location['type'] 
     return 'nature_reserve';
   }
 
-  if (tags.highway === 'path' || tags.highway === 'footway') {
+  if (tags.highway === 'path') {
     return 'trail';
   }
 

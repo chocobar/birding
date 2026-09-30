@@ -18,6 +18,7 @@ interface LocationCardProps {
     description?: string;
     tags?: string[];
     osmRelationId?: number;
+    osmWayId?: number;
     lengthKm?: number;
     network?: 'nwn' | 'rwn' | 'lwn';
     website?: string;
@@ -172,6 +173,9 @@ export default function LocationCard({ location }: LocationCardProps) {
           latitude={location.latitude}
           longitude={location.longitude}
           osmRelationId={location.osmRelationId}
+          // Way geometry is a trail concern: other way-mapped features keep
+          // their centre pin
+          osmWayId={location.type === 'trail' ? location.osmWayId : undefined}
           website={location.website}
           onRouteLength={setLengthKm}
           onClose={() => setIsMapOpen(false)}

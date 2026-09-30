@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { getBirdsForLocation, BirdResult } from '@/lib/api/birdClient';
-import { getNearbyLocations, getRouteGeometry } from '@/lib/api/locationClient';
+import { getNearbyLocations, getOsmLineGeometry } from '@/lib/api/locationClient';
 import { Location } from '@/lib/types';
 
 /**
@@ -34,14 +34,23 @@ export function useLocationSearch(latitude: number | null, longitude: number | n
 }
 
 /**
- * Fetch the polyline geometry of a walking route relation on demand.
- * Cached by relation id so repeat opens are instant.
+ * The OSM feature whose full shape the map modal should draw: a walking-route
+ * relation, or a trail way.
  */
-export function useRouteGeometry(relationId: number | null) {
+export interface OsmGeometryTarget {
+  kind: 'relation' | 'way';
+  id: number;
+}
+
+/**
+ * Fetch the polyline geometry of an OSM relation or way on demand.
+ * Cached by kind + id so repeat opens are instant.
+ */
+export function useOsmLineGeometry(target: OsmGeometryTarget | null) {
   return useQuery<[number, number][]>({
-    queryKey: ['route-geom', relationId],
-    queryFn: () => getRouteGeometry(relationId!),
-    enabled: relationId !== null,
+    queryKey: ['osm-line-geometry', target?.kind, target?.id],
+    queryFn: () => getOsmLineGeometry(target!.kind, target!.id),
+    enabled: target !== null,
     staleTime: 1000 * 60 * 30,
   });
 }

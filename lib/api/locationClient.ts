@@ -1,5 +1,4 @@
 import { Location } from '@/lib/types';
-import { fetchOverpass } from '@/lib/api/overpass';
 
 const LOCATIONS_API_BASE = '/api/locations';
 
@@ -44,32 +43,34 @@ export async function getNearbyLocations(
 }
 
 /**
- * Fetch the full geometry (polyline points) of a walking route relation.
- * Used on demand when a route's map is opened; points are ordered lat/lng pairs.
+ * Fetch the full geometry (polyline points) of a line-like OSM feature — a
+ * walking-route relation or a trail way. Served by the server-side proxy
+ * (/api/geometry), which picks Geoapify or Overpass by key availability and
+ * hides the API key from the browser. Points are ordered lat/lng pairs.
  */
-export async function getRouteGeometry(relationId: number): Promise<[number, number][]> {
-  const query = `[out:json][timeout:25];relation(${relationId});out geom;`;
+export async function getOsmLineGeometry(
+  kind: 'relation' | 'way',
+  id: number
+): Promise<[number, number][]> {
+  const params = new URLSearchParams({ kind, id: String(id) });
 
-  const data = await fetchOverpass(query, { timeoutMs: 30000, attemptsPerEndpoint: 2 });
-  const relation = data.elements?.[0];
-
-  if (!relation?.members) {
-    throw new Error(`No geometry found for relation ${relationId}`);
+  let response: Response;
+  try {
+    response = await fetch(`/api/geometry?${params.toString()}`);
+  } catch (error) {
+    console.error(`Error fetching ${kind} ${id} geometry from /api/geometry:`, error);
+    throw new Error('Could not load the map geometry. Please check your connection and try again.');
   }
 
-  const points: [number, number][] = [];
-  for (const member of relation.members) {
-    if (member.type !== 'way' || !member.geometry) continue;
-    for (const point of member.geometry) {
-      if (point) {
-        points.push([point.lat, point.lon]);
-      }
-    }
+  if (!response.ok) {
+    console.error(`/api/geometry returned ${response.status} for ${kind} ${id}`);
+    throw new Error('Map geometry is temporarily unavailable.');
   }
 
-  if (points.length < 2) {
-    throw new Error(`Route ${relationId} has no usable geometry`);
+  const data = await response.json();
+  if (!Array.isArray(data.geometry) || data.geometry.length < 2) {
+    throw new Error(`No usable geometry for ${kind} ${id}`);
   }
 
-  return points;
+  return data.geometry as [number, number][];
 }

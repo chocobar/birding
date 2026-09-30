@@ -4,7 +4,7 @@ import { useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { X, ExternalLink, Loader2 } from 'lucide-react';
 import { formatDistance, calculateRouteLengthMiles, milesToKilometers } from '@/lib/utils/distanceCalculator';
-import { useRouteGeometry } from '@/lib/hooks/useBirdSearch';
+import { useOsmLineGeometry, OsmGeometryTarget } from '@/lib/hooks/useBirdSearch';
 
 const LocationMap = dynamic(() => import('./LocationMap'), {
   ssr: false,
@@ -22,6 +22,7 @@ interface MapModalProps {
   latitude: number;
   longitude: number;
   osmRelationId?: number;
+  osmWayId?: number;
   website?: string;
   onRouteLength?: (lengthKm: number) => void;
   onClose: () => void;
@@ -34,12 +35,20 @@ export default function MapModal({
   latitude,
   longitude,
   osmRelationId,
+  osmWayId,
   website,
   onRouteLength,
   onClose,
 }: MapModalProps) {
-  const isRoute = typeof osmRelationId === 'number';
-  const geometryQuery = useRouteGeometry(isRoute ? osmRelationId : null);
+  // Line-shaped features (route relations, trail ways) draw their full shape;
+  // everything else keeps the centre pin.
+  const geometryTarget: OsmGeometryTarget | null =
+    typeof osmRelationId === 'number'
+      ? { kind: 'relation', id: osmRelationId }
+      : typeof osmWayId === 'number'
+        ? { kind: 'way', id: osmWayId }
+        : null;
+  const geometryQuery = useOsmLineGeometry(geometryTarget);
 
   const handleEscape = useCallback(
     (e: KeyboardEvent) => {
@@ -58,7 +67,7 @@ export default function MapModal({
   }, [handleEscape]);
 
   const geometry = geometryQuery.data;
-  const isLoadingGeometry = isRoute && geometryQuery.isPending;
+  const isLoadingGeometry = geometryTarget !== null && geometryQuery.isPending;
 
   useEffect(() => {
     if (!geometry || !onRouteLength) return;
@@ -70,8 +79,10 @@ export default function MapModal({
     ? Math.round(milesToKilometers(calculateRouteLengthMiles(geometry)) * 10) / 10
     : null;
 
-  const routeDetailLink = isRoute
-    ? `https://www.openstreetmap.org/relation/${osmRelationId}`
+  const routeDetailLink = geometryTarget
+    ? geometryTarget.kind === 'relation'
+      ? `https://www.openstreetmap.org/relation/${geometryTarget.id}`
+      : `https://www.openstreetmap.org/way/${geometryTarget.id}`
     : null;
 
   return (

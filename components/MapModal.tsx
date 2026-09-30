@@ -83,7 +83,7 @@ export default function MapModal({
     >
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in"
+        className="absolute inset-0 bg-black/50 backdrop-blur-md animate-fade-in"
         onClick={onClose}
       />
 

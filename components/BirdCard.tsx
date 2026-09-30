@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import { Bird, ExternalLink } from 'lucide-react';
+import { useMapOpen } from './MapOpenContext';
 
 const MapModal = dynamic(() => import('./MapModal'), { ssr: false });
 
@@ -29,7 +30,9 @@ export default function BirdCard({ bird, resolvedImageUrl: externalImageUrl, isL
   // Use externally-resolved image URL (from batch fetch), fall back to bird.imageUrl
   const displayImageUrl = externalImageUrl ?? bird.imageUrl ?? null;
   const [imageError, setImageError] = useState(false);
-  const [isMapOpen, setIsMapOpen] = useState(false);
+  const { openMapId, openMap, closeMap } = useMapOpen();
+  const mapKey = `bird:${bird.id}`;
+  const isMapOpen = openMapId === mapKey;
 
   // Build outbound link: eBird species page for live data, Wikipedia for mock/fallback
   const learnMoreUrl = isLiveData
@@ -111,7 +114,7 @@ export default function BirdCard({ bird, resolvedImageUrl: externalImageUrl, isL
               <span className="flex items-center gap-1">
                 {bird.latitude != null && bird.longitude != null ? (
                   <button
-                    onClick={() => setIsMapOpen(true)}
+                    onClick={() => openMap(mapKey)}
                     className="inline-flex items-center gap-1 text-[var(--brand-green)] hover:underline focus:outline-none"
                     aria-label={`View ${bird.locationName} on map`}
                   >
@@ -167,7 +170,7 @@ export default function BirdCard({ bird, resolvedImageUrl: externalImageUrl, isL
         distance={0}
         latitude={bird.latitude}
         longitude={bird.longitude}
-        onClose={() => setIsMapOpen(false)}
+        onClose={closeMap}
       />
     )}
     </>

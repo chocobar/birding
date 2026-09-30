@@ -8,14 +8,56 @@ This document details all external data sources used by Birding Discovery, their
 
 | Data Source | Purpose | License | API Key Required | Attribution Required |
 |-------------|---------|---------|------------------|---------------------|
-| Nominatim (OpenStreetMap) | Global geocoding (search + reverse) | ODbL 1.0 | ❌ No | ✅ Yes |
-| OpenStreetMap (Overpass API) | Location data (parks, trails, etc.) | ODbL 1.0 | ❌ No | ✅ Yes |
+| Geoapify (Places & Geocoding APIs) | Primary geocoding + location data (when `GEOAPIFY_API_KEY` is set) | Serves OpenStreetMap data under ODbL 1.0 | ✅ Yes (free) | ✅ Yes (© OpenStreetMap contributors) |
+| Nominatim (OpenStreetMap) | Fallback geocoding (search + reverse) | ODbL 1.0 | ❌ No | ✅ Yes |
+| OpenStreetMap (Overpass API) | Fallback location data (parks, trails, etc.) | ODbL 1.0 | ❌ No | ✅ Yes |
 | Unsplash | Bird photography | Unsplash License | ❌ No | ✅ Yes (per image) |
 | Mock Bird Data | Bird species information | Original content | N/A | ❌ No |
 
 ---
 
-## 1️⃣ Nominatim (OpenStreetMap Geocoding)
+## 1️⃣ Geoapify (Places & Geocoding APIs)
+
+### What We Use
+- Forward geocoding (place name/postcode → latitude/longitude) and reverse geocoding
+- Nearby location data: parks, nature reserves, greens, water bodies and walking paths
+
+### API Endpoints
+```
+https://api.geoapify.com/v2/places
+https://api.geoapify.com/v1/geocode
+```
+
+### Data Source & License
+
+Geoapify serves **OpenStreetMap-derived data**, so the underlying data license is the same ODbL 1.0 that applies to our direct OSM usage:
+- ✅ **Attribution required** ("© OpenStreetMap contributors") — already displayed in the app footer
+- ✅ **Share-Alike** obligations unchanged — we only fetch and display data, no derivative database
+
+### Our Compliance
+
+**Attribution (displayed in app footer):**
+```
+Location data: © OpenStreetMap contributors · Geocoding by Nominatim
+```
+The footer text remains accurate with Geoapify enabled, since the data itself is still OSM-derived.
+
+**Key handling:**
+- API key stored server-side only (`GEOAPIFY_API_KEY`, no `NEXT_PUBLIC_` prefix), proxied through `/api/geocode` and `/api/locations`
+
+**License URL:** https://opendatacommons.org/licenses/odbl/1.0/
+**Geoapify Terms:** https://www.geoapify.com/terms-and-conditions/
+
+### Usage Limits
+- Free plan: 3,000 requests/day (paid tiers scale higher)
+- Requests are bounded by the app's existing server-side cache (10 min fresh / 24 h stale) and SWR revalidation
+
+### Fallback Behavior
+When the key is absent or Geoapify fails, the app falls back to the public Nominatim/Overpass services (sections below), so availability never depends on a single provider.
+
+---
+
+## 2️⃣ Nominatim (OpenStreetMap Geocoding)
 
 ### What We Use
 - Forward geocoding (place name/postcode → latitude/longitude)
@@ -54,13 +96,14 @@ Location data: OpenStreetMap · Geocoding by Nominatim
 
 ---
 
-## 2️⃣ OpenStreetMap (Overpass API)
+## 3️⃣ OpenStreetMap (Overpass API)
 
 ### What We Use
-- Natural features (water bodies, woodlands)
+- Fallback source for natural features (water bodies, woodlands)
 - Parks and nature reserves
 - Walking trails and footpaths
 - Point of interest (POI) data
+- On-demand geometry for walking-route relations
 
 ### API Endpoint
 ```
@@ -122,7 +165,7 @@ Licensed under the Open Database License (ODbL)
 
 ---
 
-## 3️⃣ Unsplash
+## 4️⃣ Unsplash
 
 ### What We Use
 - Bird photography for display cards
@@ -195,7 +238,7 @@ Display credit in UI:
 
 ---
 
-## 4️⃣ Mock Bird Data
+## 5️⃣ Mock Bird Data
 
 ### What We Use
 - Common UK bird species list (15 birds)

@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { geoapifyForwardGeocode, geoapifyReverseGeocode, getGeoapifyApiKey } from '@/lib/api/geoapify';
 
 const NOMINATIM_API_BASE = 'https://nominatim.openstreetmap.org';
 
@@ -47,6 +48,17 @@ export async function GET(request: NextRequest) {
         return Response.json({ results: [] });
       }
 
+      // Geoapify first when configured: a keyed service without Nominatim's
+      // 1 request/second usage-policy ceiling. Nominatim stays as the fallback
+      // for an absent key or a Geoapify failure.
+      if (getGeoapifyApiKey()) {
+        try {
+          return Response.json({ results: await geoapifyForwardGeocode(trimmed) });
+        } catch (error) {
+          console.warn('Geoapify forward geocoding failed; falling back to Nominatim:', error);
+        }
+      }
+
       const upstream = await throttledFetch(
         `${NOMINATIM_API_BASE}/search?q=${encodeURIComponent(trimmed)}&format=jsonv2&limit=5`
       );
@@ -79,6 +91,14 @@ export async function GET(request: NextRequest) {
 
       if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
         return Response.json({ displayName: null, error: 'Invalid coordinates' }, { status: 400 });
+      }
+
+      if (getGeoapifyApiKey()) {
+        try {
+          return Response.json({ displayName: await geoapifyReverseGeocode(lat, lng) });
+        } catch (error) {
+          console.warn('Geoapify reverse geocoding failed; falling back to Nominatim:', error);
+        }
       }
 
       const upstream = await throttledFetch(

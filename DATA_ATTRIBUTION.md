@@ -101,9 +101,9 @@ Location data: OpenStreetMap · Geocoding by Nominatim
 ### What We Use
 - Fallback source for natural features (water bodies, woodlands)
 - Parks and nature reserves
-- Walking trails and footpaths
+- Walking trails (named paths; urban footways are excluded — they are pavements, not trails)
 - Point of interest (POI) data
-- On-demand geometry for walking-route relations
+- On-demand geometry for walking-route relations and trail ways
 
 ### API Endpoint
 ```

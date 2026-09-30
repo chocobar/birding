@@ -31,13 +31,14 @@ const GEOCODE_TIMEOUT_MS = 8000;
 // - greens: parks (the parent key includes the garden and nature_reserve child
 //   categories), forests, heath/moor and other protected areas
 // - water: open water bodies and wetlands
-// - trails: named paths/footways, capped like the Overpass trails statement
+// - trails: named paths, capped like the Overpass trails statement
 // (Named hiking-route relations have no Places category and are the one thing
 // this loses versus the Overpass relations query; they were best-effort
-// decoration there too.)
+// decoration there too. highway.footway is deliberately excluded: footways
+// are urban pavements and passages, not trails.)
 const GREENS_CATEGORIES = 'leisure.park,natural.forest,natural.heath_moor,natural.protected_area';
 const WATER_CATEGORIES = 'natural.water,natural.wetland';
-const TRAIL_CATEGORIES = 'highway.path,highway.footway';
+const TRAIL_CATEGORIES = 'highway.path';
 const GREENS_LIMIT = 500;
 const TRAILS_LIMIT = 100;
 
@@ -48,8 +49,14 @@ interface GeoapifyPlaceProperties {
   categories?: string[];
   place_id?: string;
   datasource?: {
-    osm_id?: number;
+    osm_id?: number | string;
     osm_type?: string;
+    /** Places API nests the source record's own fields under `raw` */
+    raw?: {
+      osm_id?: number | string;
+      osm_type?: string;
+      [key: string]: unknown;
+    };
   };
 }
 
@@ -136,6 +143,36 @@ function categoryLeaf(categories: string[]): string | undefined {
   return undefined;
 }
 
+/**
+ * The OSM object a place was built from, normalized across Geoapify's
+ * response shapes: the Places API nests `osm_type`/`osm_id` inside
+ * `datasource.raw` with single-letter values ("n"/"w"/"r"), while other
+ * Geoapify surfaces have used top-level long forms and negative relation
+ * ids. Returns the positive OSM id so links and geometry lookups work.
+ */
+function extractOsmRef(properties: GeoapifyPlaceProperties): { type: 'node' | 'way' | 'relation'; id: number } | null {
+  const datasource = properties.datasource;
+  if (!datasource) return null;
+
+  for (const candidate of [datasource.raw, datasource]) {
+    if (!candidate) continue;
+    const value = candidate.osm_type?.trim().toLowerCase();
+    const type = value === 'n' || value === 'node'
+      ? 'node' as const
+      : value === 'w' || value === 'way'
+        ? 'way' as const
+        : value === 'r' || value === 'relation'
+          ? 'relation' as const
+          : null;
+    if (!type) continue;
+    const id = Number(candidate.osm_id);
+    if (!Number.isInteger(id) || id === 0) continue;
+    return { type, id: Math.abs(id) };
+  }
+
+  return null;
+}
+
 function featureToLocation(
   feature: GeoapifyPlaceFeature,
   type: Location['type'],
@@ -154,8 +191,7 @@ function featureToLocation(
 
   const categories = properties.categories ?? [];
   const leaf = categoryLeaf(categories);
-  const osmType = properties.datasource?.osm_type;
-  const osmId = properties.datasource?.osm_id;
+  const osmRef = extractOsmRef(properties);
 
   return {
     id: properties.place_id ? `geoapify-${properties.place_id}` : `geoapify-${lat.toFixed(5)},${lon.toFixed(5)}`,
@@ -166,7 +202,8 @@ function featureToLocation(
     distance: calculateDistance(userLat, userLon, lat, lon),
     description: generateDescription(undefined, type),
     tags: leaf ? [leaf] : undefined,
-    osmRelationId: osmType === 'relation' && osmId ? osmId : undefined,
+    osmRelationId: osmRef?.type === 'relation' ? osmRef.id : undefined,
+    osmWayId: osmRef?.type === 'way' ? osmRef.id : undefined,
   };
 }
 

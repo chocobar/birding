@@ -13,6 +13,7 @@ export interface Location {
   };
   tags?: string[];
   osmRelationId?: number; // Overpass relation id, used for on-demand geometry fetch
+  osmWayId?: number; // Overpass way id, used for on-demand line geometry (trails) fetch
   routeGeometry?: [number, number][]; // lat/lng pairs, populated on demand when the map opens
   lengthKm?: number; // Calculated from geometry once fetched
   network?: 'nwn' | 'rwn' | 'lwn'; // OSM walking network: national / regional / local

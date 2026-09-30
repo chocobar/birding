@@ -143,6 +143,7 @@ birding/
 
 - **OpenStreetMap Nominatim**: Free, no authentication required — global geocoding and search suggestions
 - **OpenStreetMap Overpass API**: Free, no authentication required — nearby location data
+- **[Geoapify](https://www.geoapify.com/) Places & Geocoding APIs**: Managed, OpenStreetMap-derived geocoding and location data — requires a free API key; used when configured, with Nominatim/Overpass as fallbacks
 - **[eBird API 2.0](https://documenter.getpostman.com/view/664302/S1ENwy59)**: Live bird observation data — requires a free API key
 - **Wikimedia Commons**: Bird species images resolved via Wikipedia API — free, no authentication required
 - **Fallback Bird Data**: 15 common UK birds (used when eBird is unavailable)
@@ -166,6 +167,22 @@ The app fetches real bird sighting data from eBird. The API key is kept **server
 
 If `EBIRD_API_KEY` is not set, the app gracefully falls back to sample bird data.
 
+### Geoapify Setup
+
+Geoapify is the primary provider for geocoding and nearby-location data when configured. It serves the same OpenStreetMap-derived data as the public Nominatim/Overpass endpoints but through a keyed, managed API, avoiding the public instances' queueing, 504s and usage-policy throttling.
+
+1. Create a free account and project at https://myprojects.geoapify.com (free plan: 3,000 requests/day)
+2. Copy the API key from the project's API Keys section
+3. Add it to `.env.local`:
+   ```
+   GEOAPIFY_API_KEY=your_key_here
+   ```
+4. Restart the server
+
+> **Security note:** Like `EBIRD_API_KEY`, the variable has no `NEXT_PUBLIC_` prefix, so the key is never bundled into client-side JavaScript. All Geoapify requests are proxied through `/api/geocode` and `/api/locations` on the server.
+
+If `GEOAPIFY_API_KEY` is not set (or a Geoapify call fails), the app automatically falls back to the public Nominatim and Overpass services — the key is an optional reliability upgrade, not a requirement.
+
 ## Data Sources & Attribution
 
 This project uses data from multiple sources. We are committed to proper attribution and license compliance.
@@ -184,6 +201,7 @@ This project uses data from multiple sources. We are committed to proper attribu
   - © OpenStreetMap contributors
   - No API key required
   - Coverage: Worldwide
+  - Served either directly (Overpass API) or via [Geoapify](https://www.geoapify.com/) when a `GEOAPIFY_API_KEY` is configured (same ODbL attribution applies)
 
 - **Bird Images**: [Wikimedia Commons](https://commons.wikimedia.org)
   - License: Individual image licenses (CC-BY-SA, etc.)
@@ -206,12 +224,12 @@ Please see **[DATA_ATTRIBUTION.md](DATA_ATTRIBUTION.md)** for comprehensive lice
 - ✅ Nominatim — Free, no registration (worldwide, usage policy applies)
 - ✅ OpenStreetMap Overpass API — Free, no registration (global coverage)
 - ✅ Wikimedia Commons — Free, no registration
+- 🔑 **Geoapify** — Free plan (3,000 requests/day), registration at https://myprojects.geoapify.com. Set `GEOAPIFY_API_KEY` in `.env.local`. The app works without it (falls back to Nominatim/Overpass).
 - 🔑 **eBird API** — Free, requires registration at https://ebird.org/api/keygen. Set `EBIRD_API_KEY` in `.env.local`. The app works without it (falls back to sample data).
 
 ### Geocoding Architecture
 
-Location search is powered by OpenStreetMap Nominatim. Future enhancements may include:
-- Provider fallbacks (e.g., Photon) for higher autocomplete availability
+Location search is powered by Geoapify when `GEOAPIFY_API_KEY` is set, with OpenStreetMap Nominatim as the automatic fallback. Future enhancements may include:
 - Search result caching to reduce upstream calls
 - Multi-language place names
 

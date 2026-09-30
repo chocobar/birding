@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { Location } from '@/lib/types';
+import { fetchGeoapifyLocations, getGeoapifyApiKey } from '@/lib/api/geoapify';
 import {
   fetchOverpass,
   buildGreensQuery,
@@ -115,6 +116,20 @@ function getCached(key: string): CacheEntry | undefined {
 }
 
 async function loadLocations(latitude: number, longitude: number, radiusMiles: number): Promise<Location[]> {
+  // Geoapify Places is the primary source when an API key is configured: it
+  // serves the same OSM-derived greens/water/trails through a keyed, managed
+  // API and answers in ~1s, without the public Overpass queueing that the
+  // pipeline below works around. The Overpass pipeline stays as the fallback
+  // for an absent key or a Geoapify failure, so neither outage mode loses the
+  // list. Both paths share the stale-while-revalidate cache above.
+  if (getGeoapifyApiKey()) {
+    try {
+      return await fetchGeoapifyLocations(latitude, longitude, radiusMiles * MILES_TO_METERS);
+    } catch (error) {
+      console.warn(`Geoapify Places failed for ${latitude},${longitude}; falling back to Overpass:`, error);
+    }
+  }
+
   const radiusMeters = radiusMiles * MILES_TO_METERS;
 
   const fetchElements = async (

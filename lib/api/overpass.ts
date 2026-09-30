@@ -424,9 +424,10 @@ export function parseOverpassElements(
  * Rivers, canals and named paths are mapped as many short way segments
  * sharing one name (40+ segments for a single canal); parks mapped both as a
  * way and a relation would otherwise appear twice. Locations must already be
- * sorted by distance so the nearest segment is kept.
+ * sorted by distance so the nearest segment is kept. Shared with the Geoapify
+ * client, whose trail results fragment the same way.
  */
-function dedupeByName(locations: Location[]): Location[] {
+export function dedupeByName(locations: Location[]): Location[] {
   const seen = new Map<string, Location>();
 
   for (const location of locations) {
@@ -513,11 +514,11 @@ function determineLocationType(tags: OverpassElement['tags']): Location['type'] 
 }
 
 /**
- * Generate a description based on location type and tags
+ * Generate a description based on location type and tags. The tag-dependent
+ * refinements (access, walking network) only apply to OSM-sourced elements;
+ * providers without tag data (Geoapify) get the type-level description.
  */
-function generateDescription(tags: OverpassElement['tags'], type: Location['type']): string {
-  if (!tags) return '';
-
+export function generateDescription(tags: OverpassElement['tags'] | undefined, type: Location['type']): string {
   const descriptions: Record<Location['type'], string> = {
     water: 'Natural water body - ideal for waterfowl and wetland bird species',
     woodland: 'Wooded area - great for woodland birds and wildlife',
@@ -528,6 +529,8 @@ function generateDescription(tags: OverpassElement['tags'], type: Location['type
   };
 
   let description = descriptions[type];
+
+  if (!tags) return description;
 
   if (type === 'route') {
     if (tags.network === 'nwn') {

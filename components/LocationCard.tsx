@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { MapPin, Trees, Waves, Leaf, Footprints, Map, Route, ExternalLink } from 'lucide-react';
 import { formatDistance } from '@/lib/utils/distanceCalculator';
 import dynamic from 'next/dynamic';
+import { useMapOpen } from './MapOpenContext';
 
 const MapModal = dynamic(() => import('./MapModal'), { ssr: false });
 
@@ -68,7 +69,9 @@ const networkLabels = {
 };
 
 export default function LocationCard({ location }: LocationCardProps) {
-  const [isMapOpen, setIsMapOpen] = useState(false);
+  const { openMapId, openMap, closeMap } = useMapOpen();
+  const mapKey = `location:${location.id}`;
+  const isMapOpen = openMapId === mapKey;
   const [lengthKm, setLengthKm] = useState<number | undefined>(location.lengthKm);
 
   const Icon = locationIcons[location.type];
@@ -148,7 +151,7 @@ export default function LocationCard({ location }: LocationCardProps) {
                   </a>
                 )}
                 <button
-                  onClick={() => setIsMapOpen(true)}
+                  onClick={() => openMap(mapKey)}
                   className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[var(--brand-green)] bg-[var(--brand-green)]/5 border border-[var(--brand-green)]/20 rounded-full hover:bg-[var(--brand-green)] hover:text-white hover:border-[var(--brand-green)] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--brand-green)] focus:ring-offset-1"
                   aria-label={
                     location.type === 'route'
@@ -178,7 +181,7 @@ export default function LocationCard({ location }: LocationCardProps) {
           osmWayId={location.type === 'trail' ? location.osmWayId : undefined}
           website={location.website}
           onRouteLength={setLengthKm}
-          onClose={() => setIsMapOpen(false)}
+          onClose={closeMap}
         />
       )}
     </>

@@ -26,7 +26,7 @@ A Next.js web application that helps users discover common birds and nearby bird
 - **Maps**: Leaflet.js + React-Leaflet
 - **APIs**:
   - [OpenStreetMap Nominatim](https://nominatim.openstreetmap.org) — Global geocoding and search suggestions
-  - [OpenStreetMap Overpass API](https://overpass-api.de) — Location data
+  - [Geoapify](https://www.geoapify.com/) Places & Geocoding APIs — OpenStreetMap-derived location data and geocoding
   - [eBird API 2.0](https://documenter.getpostman.com/view/664302/S1ENwy59) — Live bird observation data
   - [Wikimedia Commons](https://commons.wikimedia.org) — Bird images
   - Mock bird data (fallback when eBird is unavailable)
@@ -141,9 +141,8 @@ birding/
 
 ### Current APIs
 
-- **OpenStreetMap Nominatim**: Free, no authentication required — global geocoding and search suggestions
-- **OpenStreetMap Overpass API**: Free, no authentication required — nearby location data
-- **[Geoapify](https://www.geoapify.com/) Places & Geocoding APIs**: Managed, OpenStreetMap-derived geocoding and location data — requires a free API key; used when configured, with Nominatim/Overpass as fallbacks
+- **OpenStreetMap Nominatim**: Free, no authentication required — global geocoding and search suggestions (fallback when Geoapify is not configured)
+- **[Geoapify](https://www.geoapify.com/) Places & Geocoding APIs**: Managed, OpenStreetMap-derived geocoding and location data — requires a free API key; powers nearby locations and is used for geocoding when configured
 - **[eBird API 2.0](https://documenter.getpostman.com/view/664302/S1ENwy59)**: Live bird observation data — requires a free API key
 - **Wikimedia Commons**: Bird species images resolved via Wikipedia API — free, no authentication required
 - **Fallback Bird Data**: 15 common UK birds (used when eBird is unavailable)
@@ -169,7 +168,7 @@ If `EBIRD_API_KEY` is not set, the app gracefully falls back to sample bird data
 
 ### Geoapify Setup
 
-Geoapify is the primary provider for geocoding and nearby-location data when configured. It serves the same OpenStreetMap-derived data as the public Nominatim/Overpass endpoints but through a keyed, managed API, avoiding the public instances' queueing, 504s and usage-policy throttling.
+Geoapify powers the nearby-locations feature and is also the primary geocoding provider when configured. It serves OpenStreetMap-derived data through a keyed, managed API, avoiding the public Nominatim instances' queueing and usage-policy throttling.
 
 1. Create a free account and project at https://myprojects.geoapify.com (free plan: 3,000 requests/day)
 2. Copy the API key from the project's API Keys section
@@ -181,7 +180,7 @@ Geoapify is the primary provider for geocoding and nearby-location data when con
 
 > **Security note:** Like `EBIRD_API_KEY`, the variable has no `NEXT_PUBLIC_` prefix, so the key is never bundled into client-side JavaScript. All Geoapify requests are proxied through `/api/geocode` and `/api/locations` on the server.
 
-If `GEOAPIFY_API_KEY` is not set (or a Geoapify call fails), the app automatically falls back to the public Nominatim and Overpass services — the key is an optional reliability upgrade, not a requirement.
+> **Required:** `GEOAPIFY_API_KEY` must be set for the nearby-locations feature to work (`/api/locations` returns an error without it). Geocoding falls back to the public Nominatim service when the key is absent or a Geoapify call fails.
 
 ## Data Sources & Attribution
 
@@ -196,12 +195,11 @@ This project uses data from multiple sources. We are committed to proper attribu
   - Coverage: Worldwide (place names, addresses, postcodes)
   - Usage policy: max 1 request/second — enforced via debounced autocomplete and a server-side proxy with identifying User-Agent
 
-- **Location Data (Global)**: [OpenStreetMap](https://www.openstreetmap.org)
+- **Location Data (Global)**: [OpenStreetMap](https://www.openstreetmap.org) via [Geoapify](https://www.geoapify.com/)
   - License: Open Database License (ODbL) 1.0
   - © OpenStreetMap contributors
-  - No API key required
+  - Requires a free Geoapify API key
   - Coverage: Worldwide
-  - Served either directly (Overpass API) or via [Geoapify](https://www.geoapify.com/) when a `GEOAPIFY_API_KEY` is configured (same ODbL attribution applies)
 
 - **Bird Images**: [Wikimedia Commons](https://commons.wikimedia.org)
   - License: Individual image licenses (CC-BY-SA, etc.)
@@ -222,9 +220,8 @@ Please see **[DATA_ATTRIBUTION.md](DATA_ATTRIBUTION.md)** for comprehensive lice
 ### API Keys
 
 - ✅ Nominatim — Free, no registration (worldwide, usage policy applies)
-- ✅ OpenStreetMap Overpass API — Free, no registration (global coverage)
 - ✅ Wikimedia Commons — Free, no registration
-- 🔑 **Geoapify** — Free plan (3,000 requests/day), registration at https://myprojects.geoapify.com. Set `GEOAPIFY_API_KEY` in `.env.local`. The app works without it (falls back to Nominatim/Overpass).
+- 🔑 **Geoapify** — **Required** for nearby locations. Free plan (3,000 requests/day), registration at https://myprojects.geoapify.com. Set `GEOAPIFY_API_KEY` in `.env.local`.
 - 🔑 **eBird API** — Free, requires registration at https://ebird.org/api/keygen. Set `EBIRD_API_KEY` in `.env.local`. The app works without it (falls back to sample data).
 
 ### Geocoding Architecture
@@ -232,6 +229,16 @@ Please see **[DATA_ATTRIBUTION.md](DATA_ATTRIBUTION.md)** for comprehensive lice
 Location search is powered by Geoapify when `GEOAPIFY_API_KEY` is set, with OpenStreetMap Nominatim as the automatic fallback. Future enhancements may include:
 - Search result caching to reduce upstream calls
 - Multi-language place names
+
+## SEO
+
+The app ships with the technical SEO foundations in place:
+
+- **Metadata** (`app/layout.tsx`): canonical URL, Open Graph and Twitter card tags, robots directives (`max-image-preview:large`), and a Google Search Console verification meta tag when `GOOGLE_SITE_VERIFICATION` is set in `.env.local`
+- **`robots.txt`** generated from `app/robots.ts` (allows crawling, disallows `/api/`, points at the sitemap)
+- **`sitemap.xml`** generated from `app/sitemap.ts`
+- **Open Graph image** generated from `app/opengraph-image.tsx` (used for both `og:image` and `twitter:image`)
+- **Structured data**: JSON-LD `WebSite` + `WebApplication` schema injected in the root layout
 
 ## Browser Support
 

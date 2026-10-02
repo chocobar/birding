@@ -23,10 +23,18 @@ interface BirdCardProps {
     longitude?: number;
   };
   resolvedImageUrl?: string | null;
+  imageAttribution?: string | null;
+  imageAttributionUrl?: string | null;
   isLiveData?: boolean;
 }
 
-export default function BirdCard({ bird, resolvedImageUrl: externalImageUrl, isLiveData }: BirdCardProps) {
+export default function BirdCard({
+  bird,
+  resolvedImageUrl: externalImageUrl,
+  imageAttribution,
+  imageAttributionUrl,
+  isLiveData,
+}: BirdCardProps) {
   // Use externally-resolved image URL (from batch fetch), fall back to bird.imageUrl
   const displayImageUrl = externalImageUrl ?? bird.imageUrl ?? null;
   const [imageError, setImageError] = useState(false);
@@ -58,6 +66,15 @@ export default function BirdCard({ bird, resolvedImageUrl: externalImageUrl, isL
 
   const showPlaceholder = !displayImageUrl || imageError;
 
+  // CC BY / CC BY-SA images require author + license credit; the batch fetch
+  // resolves both from the Commons file metadata. Photos served straight from
+  // the mock data's Unsplash URLs get an Unsplash credit instead.
+  const isWikimediaImage = Boolean(externalImageUrl);
+  const creditText = isWikimediaImage ? imageAttribution : 'Photo via Unsplash';
+  const creditUrl = isWikimediaImage
+    ? imageAttributionUrl
+    : 'https://unsplash.com';
+
   return (
     <>
     <article className="group bg-[var(--warm-sand)] rounded-xl border border-[var(--border-light)] overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
@@ -78,6 +95,28 @@ export default function BirdCard({ bird, resolvedImageUrl: externalImageUrl, isL
         {showPlaceholder && (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[var(--brand-green-light)]/20 to-[var(--accent-amber)]/20">
             <Bird className="w-14 h-14 text-[var(--brand-green)]/40" />
+          </div>
+        )}
+        {!showPlaceholder && creditText && (
+          <div className="absolute bottom-1.5 left-1.5 right-1.5 flex justify-start">
+            {creditUrl ? (
+              <a
+                href={creditUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={creditText}
+                className="max-w-full truncate rounded bg-black/40 px-1.5 py-0.5 text-[10px] leading-tight text-white/85 backdrop-blur-[2px] hover:bg-black/60 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/60 transition-colors"
+              >
+                © {creditText}
+              </a>
+            ) : (
+              <span
+                title={creditText}
+                className="max-w-full truncate rounded bg-black/40 px-1.5 py-0.5 text-[10px] leading-tight text-white/85 backdrop-blur-[2px]"
+              >
+                © {creditText}
+              </span>
+            )}
           </div>
         )}
         {/* Conservation badge overlaid on image */}

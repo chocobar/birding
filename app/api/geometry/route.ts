@@ -1,25 +1,13 @@
 import { NextRequest } from 'next/server';
-import { fetchOverpass, OverpassElement } from '@/lib/api/overpass';
 import { getGeoapifyApiKey } from '@/lib/api/geoapify';
 
 /**
  * On-demand line geometry for the map modal. The list endpoint deliberately
- * serves only centre points (`out center tags` keeps payloads small), so the
- * full shape of a line-like feature — a walking-route relation or a trail
- * way — is fetched when its map is opened, exactly like the relation flow
- * this route generalises.
- *
- * Both kinds prefer the Geoapify Place Details API when a key is configured
- * (it answers in ~1s without the public Overpass queueing) and fall back to
- * Overpass when Geoapify has no key, fails, or carries no line geometry for
- * the object. Overpass stays the last resort rather than the primary: the
- * public instances' queueing is what the Geoapify switch exists to avoid.
+ * serves only centre points (keeps payloads small), so the full shape of a
+ * line-like feature — a walking-route relation or a trail way — is fetched
+ * when its map is opened, via the Geoapify Place Details API.
  */
 
-// Same per-attempt window the client-side geometry fetch used before this
-// route existed: under congestion the public instances have been observed
-// answering single-object queries as slowly as ~20s.
-const OVERPASS_OPTS = { timeoutMs: 30000, attemptsPerEndpoint: 2 };
 const PLACE_DETAILS_TIMEOUT_MS = 10000;
 
 const PLACE_DETAILS_ENDPOINT = 'https://api.geoapify.com/v2/place-details';
@@ -86,7 +74,7 @@ function geojsonToPoints(geometry: PlaceDetailsFeature['geometry']): Point[] | n
 /**
  * Full geometry of an OSM relation or way via Geoapify Place Details.
  * Returns null when no key is configured, the lookup fails, or the place
- * carries no line geometry — all three fall back to Overpass.
+ * carries no line geometry.
  */
 async function fetchGeometryFromGeoapify(kind: GeometryKind, osmId: number): Promise<Point[] | null> {
   const apiKey = getGeoapifyApiKey();
@@ -120,72 +108,19 @@ async function fetchGeometryFromGeoapify(kind: GeometryKind, osmId: number): Pro
   }
 }
 
-/** Member-way geometry of a route relation, flattened into one polyline. */
-async function fetchRelationGeometryFromOverpass(relationId: number): Promise<Point[]> {
-  const query = `[out:json][timeout:25];relation(${relationId});out geom;`;
-  const data = await fetchOverpass(query, OVERPASS_OPTS);
-  const relation = data.elements?.[0];
-
-  if (!relation?.members) {
-    throw new Error(`No geometry found for relation ${relationId}`);
-  }
-
-  const points: Point[] = [];
-  for (const member of relation.members) {
-    if (member.type !== 'way' || !member.geometry) continue;
-    for (const point of member.geometry) {
-      if (point) {
-        points.push([point.lat, point.lon]);
-      }
-    }
-  }
-
-  if (points.length < 2) {
-    throw new Error(`Route ${relationId} has no usable geometry`);
-  }
-
-  return points;
-}
-
-/** Node geometry of a single way. */
-async function fetchWayGeometryFromOverpass(wayId: number): Promise<Point[]> {
-  const query = `[out:json][timeout:25];way(${wayId});out geom;`;
-  const data = await fetchOverpass(query, OVERPASS_OPTS);
-  const way: OverpassElement | undefined = data.elements?.[0];
-
-  const points: Point[] = [];
-  for (const point of way?.geometry ?? []) {
-    if (point) {
-      points.push([point.lat, point.lon]);
-    }
-  }
-
-  if (points.length < 2) {
-    throw new Error(`Way ${wayId} has no usable geometry`);
-  }
-
-  return points;
-}
-
 export async function GET(request: NextRequest) {
   const parsed = parseParams(request);
   if ('error' in parsed) {
     return Response.json({ geometry: [], error: parsed.error }, { status: 400 });
   }
 
-  try {
-    let geometry: Point[] | null = await fetchGeometryFromGeoapify(parsed.kind, parsed.id);
-    if (!geometry) {
-      geometry = parsed.kind === 'relation'
-        ? await fetchRelationGeometryFromOverpass(parsed.id)
-        : await fetchWayGeometryFromOverpass(parsed.id);
-    }
-    return Response.json({ geometry });
-  } catch (error) {
-    console.error(`Failed to load ${parsed.kind} ${parsed.id} geometry:`, error);
+  const geometry = await fetchGeometryFromGeoapify(parsed.kind, parsed.id);
+  if (!geometry) {
     return Response.json(
       { geometry: [], error: 'Geometry data is temporarily unavailable' },
       { status: 502 }
     );
   }
+
+  return Response.json({ geometry });
 }

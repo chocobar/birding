@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import LocationCard from './LocationCard';
 import { MapPin, ChevronDown, RefreshCw } from 'lucide-react';
-import { Location } from '@/lib/types';
+import { Location, LocationDataSource } from '@/lib/types';
 
 const PAGE_SIZE = 5;
 
@@ -26,6 +26,8 @@ interface LocationListProps {
   isRetrying?: boolean;
   onRetry?: () => void;
   postcode?: string;
+  /** Which upstream served these results — drives the Geoapify credit */
+  dataSource?: LocationDataSource;
 }
 
 function SkeletonCard() {
@@ -84,6 +86,7 @@ export default function LocationList({
   isRetrying = false,
   onRetry,
   postcode,
+  dataSource,
 }: LocationListProps) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [filter, setFilter] = useState<FilterKey>('all');
@@ -224,6 +227,31 @@ export default function LocationList({
           </p>
         </div>
       )}
+
+      <p className="mt-8 text-xs text-[var(--text-secondary)] text-center">
+        Location data ©{' '}
+        <a
+          href="https://www.openstreetmap.org/copyright"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[var(--brand-green)] underline decoration-[var(--brand-green-light)] hover:decoration-[var(--brand-green)]"
+        >
+          OpenStreetMap contributors
+        </a>
+        {dataSource === 'geoapify' && (
+          <>
+            {' · '}
+            <a
+              href="https://www.geoapify.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[var(--brand-green)] underline decoration-[var(--brand-green-light)] hover:decoration-[var(--brand-green)]"
+            >
+              Powered by Geoapify
+            </a>
+          </>
+        )}
+      </p>
     </section>
   );
 }

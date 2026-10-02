@@ -12,7 +12,7 @@ const MAX_BIRDS_PER_REQUEST = 20;
  *   { birds: [{ name: string, scientificName?: string }, ...] }
  *
  * Response:
- *   { images: { [name: string]: { imageUrl: string | null, attribution: string | null } } }
+ *   { images: { [name: string]: { imageUrl: string | null, attribution: string | null, attributionUrl: string | null } } }
  *
  * Maximum of 20 birds per request to prevent abuse.
  */
@@ -68,14 +68,19 @@ export async function POST(request: NextRequest) {
     ),
   );
 
-  const images: Record<string, { imageUrl: string | null; attribution: string | null }> = {};
+  const images: Record<
+    string,
+    { imageUrl: string | null; attribution: string | null; attributionUrl: string | null }
+  > = {};
+
+  const emptyResult = { imageUrl: null, attribution: null, attributionUrl: null };
 
   for (let i = 0; i < typedBirds.length; i++) {
     const settled = results[i];
     if (settled.status === 'fulfilled') {
       images[typedBirds[i].name] = settled.value;
     } else {
-      images[typedBirds[i].name] = { imageUrl: null, attribution: null };
+      images[typedBirds[i].name] = emptyResult;
     }
   }
 

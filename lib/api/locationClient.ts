@@ -1,10 +1,16 @@
-import { Location } from '@/lib/types';
+import { Location, LocationDataSource } from '@/lib/types';
 
 const LOCATIONS_API_BASE = '/api/locations';
 
+export interface NearbyLocationsResult {
+  locations: Location[];
+  /** Which upstream served the results — drives the Geoapify attribution */
+  source: LocationDataSource;
+}
+
 /**
  * Fetch nearby locations for a geocoded position via the server-side proxy
- * (/api/locations), which caches results and bounds Overpass latency.
+ * (/api/locations), which caches results and bounds upstream latency.
  * Throws on failure so the UI can show an error state: fabricated "nearby"
  * places are worse than no results.
  */
@@ -12,7 +18,7 @@ export async function getNearbyLocations(
   latitude: number,
   longitude: number,
   radiusMiles: number = 5
-): Promise<Location[]> {
+): Promise<NearbyLocationsResult> {
   const params = new URLSearchParams({
     lat: latitude.toString(),
     lng: longitude.toString(),
@@ -34,18 +40,21 @@ export async function getNearbyLocations(
 
   const data = await response.json();
 
-  // Server could not reach Overpass — surface the failure rather than faking results
+  // Server could not reach the location service — surface the failure rather than faking results
   if (!data.isLiveData || !Array.isArray(data.locations)) {
     throw new Error('Nearby location data is temporarily unavailable. Please try again shortly.');
   }
 
-  return data.locations as Location[];
+  return {
+    locations: data.locations as Location[],
+    source: data.source === 'geoapify' ? 'geoapify' : 'osm',
+  };
 }
 
 /**
  * Fetch the full geometry (polyline points) of a line-like OSM feature — a
  * walking-route relation or a trail way. Served by the server-side proxy
- * (/api/geometry), which picks Geoapify or Overpass by key availability and
+ * (/api/geometry), which proxies the Geoapify Place Details API and
  * hides the API key from the browser. Points are ordered lat/lng pairs.
  */
 export async function getOsmLineGeometry(

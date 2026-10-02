@@ -1,14 +1,12 @@
 import { Location } from '@/lib/types';
 import { calculateDistance } from '@/lib/utils/distanceCalculator';
-import { dedupeByName, generateDescription } from '@/lib/api/overpass';
 
 /**
- * Geoapify client. Geoapify serves the same OpenStreetMap-derived data the app
- * previously fetched directly from the public Nominatim/Overpass servers, but
- * through a keyed, managed API without their queueing, 504s and usage-policy
- * throttling. All functions here throw on failure; the routes that call them
- * fall back to the public services, so an empty/invalid key or a Geoapify
- * outage degrades to today's behavior instead of breaking the app.
+ * Geoapify client. Geoapify serves OpenStreetMap-derived data through a
+ * keyed, managed API without the public Nominatim servers' queueing, 504s
+ * and usage-policy throttling. All functions here throw on
+ * failure; the routes that call them surface the error so the UI can show
+ * its retry state instead of fabricating results.
  */
 
 /**
@@ -27,20 +25,64 @@ const GEOCODE_ENDPOINT = 'https://api.geoapify.com/v1/geocode';
 const PLACES_TIMEOUT_MS = 10000;
 const GEOCODE_TIMEOUT_MS = 8000;
 
-// Category selection mirrors the Overpass queries in overpass.ts:
+// Category selection for the Places queries:
 // - greens: parks (the parent key includes the garden and nature_reserve child
 //   categories), forests, heath/moor and other protected areas
 // - water: open water bodies and wetlands
-// - trails: named paths, capped like the Overpass trails statement
-// (Named hiking-route relations have no Places category and are the one thing
-// this loses versus the Overpass relations query; they were best-effort
-// decoration there too. highway.footway is deliberately excluded: footways
-// are urban pavements and passages, not trails.)
+// - trails: named paths, capped like the trails query
+// (Named hiking-route relations have no Places category; highway.footway is
+// deliberately excluded: footways are urban pavements and passages, not trails.)
 const GREENS_CATEGORIES = 'leisure.park,natural.forest,natural.heath_moor,natural.protected_area';
 const WATER_CATEGORIES = 'natural.water,natural.wetland';
 const TRAIL_CATEGORIES = 'highway.path';
 const GREENS_LIMIT = 500;
 const TRAILS_LIMIT = 100;
+
+/** Collapse consecutive results that share a type and name (rivers and named
+ * paths arrive as many short segments from the Places API). */
+export function dedupeByName(locations: Location[]): Location[] {
+  const seen = new Map<string, Location>();
+
+  for (const location of locations) {
+    const key = `${location.type}:${location.name.toLowerCase()}`;
+    if (!seen.has(key)) {
+      seen.set(key, location);
+    }
+  }
+
+  return Array.from(seen.values());
+}
+
+export function generateDescription(tags: Record<string, string> | undefined, type: Location['type']): string {
+  const descriptions: Record<Location['type'], string> = {
+    water: 'Natural water body - ideal for waterfowl and wetland bird species',
+    woodland: 'Wooded area - great for woodland birds and wildlife',
+    nature_reserve: 'Protected nature reserve with diverse habitats',
+    park: 'Public park with green spaces and nature areas',
+    trail: 'Walking trail - good for bird watching on foot',
+    route: 'Named walking route made up of linked paths',
+  };
+
+  let description = descriptions[type];
+
+  if (!tags) return description;
+
+  if (type === 'route') {
+    if (tags.network === 'nwn') {
+      description = 'National Trail - long-distance waymarked walking route';
+    } else if (tags.network === 'rwn') {
+      description = 'Regional walking route - waymarked, typically a day-long walk';
+    } else if (tags.network === 'lwn') {
+      description = 'Local waymarked walk - often a circular route';
+    }
+  }
+
+  if (tags.access === 'yes' || tags.access === 'permissive') {
+    description += '. Public access available';
+  }
+
+  return description;
+}
 
 interface GeoapifyPlaceProperties {
   name?: string;
@@ -95,8 +137,7 @@ async function fetchPlaces(
     categories,
     filter: `circle:${longitude},${latitude},${radiusMeters}`,
     // Distance-ordered results: if a cap truncates the list, the nearest
-    // features are the ones kept (parseOverpassElements relied on the same
-    // property of the Overpass queries).
+    // features are the ones kept.
     bias: `proximity:${longitude},${latitude}`,
     limit: String(limit),
     lang: 'en',
@@ -208,11 +249,11 @@ function featureToLocation(
 }
 
 /**
- * Load the same nearby birding locations the Overpass pipeline produces, via
- * three parallel Places requests (greens, water, trails). Named parks and
- * water are the critical content of the list: if the circle genuinely contains
- * neither, that is treated as a failure so the caller falls back to Overpass
- * instead of caching an empty list for 24 hours.
+ * Load nearby birding locations via three parallel Places requests (greens,
+ * water, trails), sorted by distance and name-deduplicated. Parks and water
+ * are the critical content of the list; a circle that genuinely contains
+ * neither returns an empty list rather than an error, which the UI renders
+ * as its "no locations found" state.
  */
 export async function fetchGeoapifyLocations(
   latitude: number,
@@ -234,13 +275,6 @@ export async function fetchGeoapifyLocations(
     ...trails.map((feature) => featureToLocation(feature, 'trail', latitude, longitude)),
   ].filter((location): location is Location => location !== null);
 
-  const critical = locations.filter((location) => location.type !== 'trail');
-  if (critical.length === 0) {
-    throw new Error('Geoapify returned no parks, greens or water features');
-  }
-
-  // Same invariants as parseOverpassElements: distance order, then collapse
-  // name-duplicated segments (rivers and named paths are many short ways).
   return dedupeByName(locations.sort((a, b) => a.distance - b.distance));
 }
 

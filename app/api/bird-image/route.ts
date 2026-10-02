@@ -8,7 +8,12 @@ export async function GET(request: NextRequest) {
 
   if (!name) {
     return Response.json(
-      { imageUrl: null, attribution: null, error: 'Missing required parameter: name' },
+      {
+        imageUrl: null,
+        attribution: null,
+        attributionUrl: null,
+        error: 'Missing required parameter: name',
+      },
       { status: 400 }
     );
   }

@@ -16,6 +16,12 @@ interface BirdData {
   observationDate?: string;
 }
 
+interface BirdImageInfo {
+  imageUrl: string | null;
+  attribution: string | null;
+  attributionUrl: string | null;
+}
+
 interface BirdListProps {
   birds: BirdData[];
   isLoading?: boolean;
@@ -44,7 +50,7 @@ function SkeletonCard() {
  */
 async function fetchBirdImages(
   birds: BirdData[]
-): Promise<Record<string, string | null>> {
+): Promise<Record<string, BirdImageInfo>> {
   if (birds.length === 0) return {};
 
   try {
@@ -61,14 +67,13 @@ async function fetchBirdImages(
 
     if (!res.ok) return {};
 
-    const data: {
-      images: Record<string, { imageUrl: string | null; attribution: string | null }>;
-    } = await res.json();
+    const data: { images: Record<string, BirdImageInfo> } = await res.json();
 
-    // Flatten to name → imageUrl map
-    const map: Record<string, string | null> = {};
+    // Flatten to name → image info map (imageUrl + attribution kept together
+    // so each photo can be credited as its Commons license requires)
+    const map: Record<string, BirdImageInfo> = {};
     for (const [name, info] of Object.entries(data.images)) {
-      map[name] = info.imageUrl;
+      map[name] = info;
     }
     return map;
   } catch {
@@ -77,7 +82,7 @@ async function fetchBirdImages(
 }
 
 export default function BirdList({ birds, isLoading = false, isLiveData }: BirdListProps) {
-  const [imageMap, setImageMap] = useState<Record<string, string | null>>({});
+  const [imageMap, setImageMap] = useState<Record<string, BirdImageInfo>>({});
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [prevBirds, setPrevBirds] = useState(birds);
 
@@ -142,16 +147,22 @@ export default function BirdList({ birds, isLoading = false, isLiveData }: BirdL
           {birds.length} species {isLiveData ? 'recently observed near this location' : 'frequently observed in this location'}
         </p>
         {isLiveData !== undefined && (
-          <span
-            className={`mt-2 inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${
-              isLiveData
-                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/70 dark:text-emerald-200 dark:border-emerald-800'
-                : 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/70 dark:text-amber-200 dark:border-amber-800'
-            }`}
-          >
-            <span className={`w-1.5 h-1.5 rounded-full ${isLiveData ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-            {isLiveData ? 'Live data from eBird' : 'Sample data (eBird unavailable)'}
-          </span>
+          isLiveData ? (
+            <a
+              href="https://ebird.org"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/70 dark:text-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-950 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              Powered by eBird
+            </a>
+          ) : (
+            <span className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/70 dark:text-amber-200 dark:border-amber-800">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+              Sample data (eBird unavailable)
+            </span>
+          )
         )}
       </div>
 
@@ -163,7 +174,9 @@ export default function BirdList({ birds, isLoading = false, isLiveData }: BirdL
           >
             <BirdCard
               bird={bird}
-              resolvedImageUrl={imageMap[bird.commonName] ?? undefined}
+              resolvedImageUrl={imageMap[bird.commonName]?.imageUrl ?? undefined}
+              imageAttribution={imageMap[bird.commonName]?.attribution ?? undefined}
+              imageAttributionUrl={imageMap[bird.commonName]?.attributionUrl ?? undefined}
               isLiveData={isLiveData}
             />
           </div>

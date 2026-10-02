@@ -10,7 +10,6 @@ This document details all external data sources used by Birding Discovery, their
 |-------------|---------|---------|------------------|---------------------|
 | Geoapify (Places & Geocoding APIs) | Primary geocoding + location data (when `GEOAPIFY_API_KEY` is set) | Serves OpenStreetMap data under ODbL 1.0 | ✅ Yes (free) | ✅ Yes (© OpenStreetMap contributors) |
 | Nominatim (OpenStreetMap) | Fallback geocoding (search + reverse) | ODbL 1.0 | ❌ No | ✅ Yes |
-| OpenStreetMap (Overpass API) | Fallback location data (parks, trails, etc.) | ODbL 1.0 | ❌ No | ✅ Yes |
 | Unsplash | Bird photography | Unsplash License | ❌ No | ✅ Yes (per image) |
 | Mock Bird Data | Bird species information | Original content | N/A | ❌ No |
 
@@ -19,31 +18,34 @@ This document details all external data sources used by Birding Discovery, their
 ## 1️⃣ Geoapify (Places & Geocoding APIs)
 
 ### What We Use
-- Forward geocoding (place name/postcode → latitude/longitude) and reverse geocoding
 - Nearby location data: parks, nature reserves, greens, water bodies and walking paths
+- On-demand geometry for walking-route relations and trail ways (Place Details API)
+- Forward geocoding (place name/postcode → latitude/longitude) and reverse geocoding
 
 ### API Endpoints
 ```
 https://api.geoapify.com/v2/places
+https://api.geoapify.com/v2/place-details
 https://api.geoapify.com/v1/geocode
 ```
 
 ### Data Source & License
 
 Geoapify serves **OpenStreetMap-derived data**, so the underlying data license is the same ODbL 1.0 that applies to our direct OSM usage:
-- ✅ **Attribution required** ("© OpenStreetMap contributors") — already displayed in the app footer
+- ✅ **Attribution required** ("© OpenStreetMap contributors") — displayed in the app footer
 - ✅ **Share-Alike** obligations unchanged — we only fetch and display data, no derivative database
 
 ### Our Compliance
 
-**Attribution (displayed in app footer):**
+**Attribution (displayed in the app):**
 ```
-Location data: © OpenStreetMap contributors · Geocoding by Nominatim
+Location data © OpenStreetMap contributors · Powered by Geoapify
 ```
-The footer text remains accurate with Geoapify enabled, since the data itself is still OSM-derived.
+The OSM credit appears in the site footer and beneath the results list; the "Powered by Geoapify" credit is shown whenever the results were served by Geoapify (the `/api/locations` response includes a `source` field, so the credit reflects the provider that actually served the data).
 
 **Key handling:**
-- API key stored server-side only (`GEOAPIFY_API_KEY`, no `NEXT_PUBLIC_` prefix), proxied through `/api/geocode` and `/api/locations`
+- API key stored server-side only (`GEOAPIFY_API_KEY`, no `NEXT_PUBLIC_` prefix), proxied through `/api/geocode`, `/api/locations` and `/api/geometry`
+- **The nearby-locations feature requires this key** — without it, `/api/locations` returns an explanatory error
 
 **License URL:** https://opendatacommons.org/licenses/odbl/1.0/
 **Geoapify Terms:** https://www.geoapify.com/terms-and-conditions/
@@ -53,7 +55,7 @@ The footer text remains accurate with Geoapify enabled, since the data itself is
 - Requests are bounded by the app's existing server-side cache (10 min fresh / 24 h stale) and SWR revalidation
 
 ### Fallback Behavior
-When the key is absent or Geoapify fails, the app falls back to the public Nominatim/Overpass services (sections below), so availability never depends on a single provider.
+Geocoding falls back to the public Nominatim service when the key is absent or a Geoapify call fails. The nearby-locations feature has no fallback and requires the key.
 
 ---
 
@@ -81,7 +83,7 @@ https://nominatim.openstreetmap.org
 
 **Attribution (displayed in app footer):**
 ```
-Location data: OpenStreetMap · Geocoding by Nominatim
+Location data © OpenStreetMap contributors · Geocoding by Nominatim
 ```
 
 **Usage policy compliance:**
@@ -95,77 +97,7 @@ Location data: OpenStreetMap · Geocoding by Nominatim
 - **Current usage:** ~1-2 requests per user interaction (well within limits)
 
 ---
-
-## 3️⃣ OpenStreetMap (Overpass API)
-
-### What We Use
-- Fallback source for natural features (water bodies, woodlands)
-- Parks and nature reserves
-- Walking trails (named paths; urban footways are excluded — they are pavements, not trails)
-- Point of interest (POI) data
-- On-demand geometry for walking-route relations and trail ways
-
-### API Endpoint
-```
-https://overpass-api.de/api/interpreter
-```
-
-### License: Open Database License (ODbL) 1.0
-
-**Key Terms:**
-- ✅ **Free to use** for any purpose
-- ✅ **No API key required**
-- ✅ **Attribution required** ("© OpenStreetMap contributors")
-- ✅ **Share-Alike** - Derivative databases must use ODbL
-- ✅ **Can modify and distribute**
-- ⚠️ **Must provide access to derived databases** (if we create one)
-
-### Our Compliance
-
-**Attribution (displayed in app footer):**
-```
-Location data: © OpenStreetMap contributors · Geocoding by Nominatim
-```
-
-**Full Attribution:**
-© OpenStreetMap contributors
-Licensed under the Open Database License (ODbL)
-
-**License URL:** https://opendatacommons.org/licenses/odbl/1.0/
-
-**Data URL:** https://www.openstreetmap.org/copyright
-
-### Usage Guidelines
-- ✅ Cache data locally (reduces API calls)
-- ✅ Provide link to OSM when displaying maps (N/A - we don't show maps currently)
-- ✅ Credit OSM contributors
-- ❌ Don't claim we created the data
-
-### Usage Limits
-- Overpass API has no strict rate limits
-- Fair use: ~10,000 queries/day recommended
-- **Current usage:** ~1 query per user search (well within limits)
-- Queries timeout at 180 seconds (our queries complete in <5 seconds)
-
-### Share-Alike Obligation
-**Important:** Since we query OSM data but don't create a derivative database:
-- ✅ We are **compliant** - we only fetch and display data
-- ✅ No obligation to open-source our database (we don't have one)
-- ✅ Our application code license is separate from data license
-
-**IF we were to:**
-- Create a local database of OSM data
-- Enrich or modify OSM data
-- Redistribute OSM data
-
-**THEN we would need to:**
-- License that database under ODbL
-- Provide access to the database
-- Document our modifications
-
----
-
-## 4️⃣ Unsplash
+## 3️⃣ Unsplash
 
 ### What We Use
 - Bird photography for display cards
@@ -238,7 +170,7 @@ Display credit in UI:
 
 ---
 
-## 5️⃣ Mock Bird Data
+## 4️⃣ Mock Bird Data
 
 ### What We Use
 - Common UK bird species list (15 birds)
@@ -258,9 +190,9 @@ Display credit in UI:
 - ✅ Publicly available information
 - ✅ No attribution required
 
-### Future: eBird API Integration
+### eBird API (Integrated)
 
-**When we integrate eBird API:**
+The app fetches live bird observation data from the eBird API when `EBIRD_API_KEY` is set.
 
 **License:** eBird API Terms of Service
 **API Key:** Required (free for non-commercial use)
@@ -274,7 +206,10 @@ Display credit in UI:
 - ⚠️ Commercial use requires special agreement
 - 📧 Contact: ebird@cornell.edu
 
-**Required Attribution:**
+**Our Compliance — attribution is displayed in the app:**
+- The results header shows a linked **"Powered by eBird"** badge whenever live data is displayed
+- The site footer adds "Bird observations provided by eBird — Cornell Lab of Ornithology" when live data is shown
+
 ```
 Bird data provided by eBird (www.ebird.org)
 A project of the Cornell Lab of Ornithology
@@ -286,15 +221,21 @@ A project of the Cornell Lab of Ornithology
 
 ### In App Footer (Currently Displayed)
 ```
-Location data from OpenStreetMap · Geocoding by Nominatim · Bird images from Wikimedia Commons
+Bird observations provided by eBird — Cornell Lab of Ornithology   (when live eBird data is shown)
+Location data © OpenStreetMap contributors · Powered by Geoapify (when Geoapify served the data) · Geocoding by Nominatim · Bird images from Wikimedia Commons
 ```
 
-### Should Be (Recommended)
+### In the Results List (Currently Displayed)
 ```
-Data sources: 
-• Geocoding & location data: © OpenStreetMap contributors (Nominatim + Overpass API, ODbL)
-• Bird photos: Wikimedia Commons contributors
+Location data © OpenStreetMap contributors · Powered by Geoapify (when Geoapify served the data)
+Powered by eBird   (linked badge on live bird results)
 ```
+
+### On Each Bird Card (Currently Displayed)
+```
+© {Photographer/Author} · {License, e.g. CC BY-SA 4.0} · via Wikimedia Commons
+```
+Each credit links to the image's file page on Wikimedia Commons, where the full author and license details are listed (satisfying CC BY / CC BY-SA attribution requirements). Photos served from the mock data's Unsplash URLs are credited "Photo via Unsplash".
 
 ---
 
@@ -302,69 +243,34 @@ Data sources:
 
 ### Currently Compliant ✅
 - [x] Nominatim - Attribution displayed, usage policy respected (User-Agent + throttle)
-- [x] OpenStreetMap - Basic attribution displayed
-- [x] Wikimedia Commons - Bird images attributed
-- [x] No API keys required for current data sources
+- [x] OpenStreetMap - "© OpenStreetMap contributors" displayed in footer and results list; map tiles carry the OSM attribution
+- [x] Geoapify - "Powered by Geoapify" displayed whenever Geoapify served the results (via the `/api/locations` `source` field)
+- [x] eBird - "Powered by eBird" badge + footer credit shown whenever live data is displayed
+- [x] Wikimedia Commons - Per-image author + license credit displayed on each bird card, linked to the Commons file page
+- [x] Unsplash - Mock-data photos credited "Photo via Unsplash"
 - [x] No rate limit violations
 - [x] Not creating derivative databases
-
-### Should Improve 🟡
-- [ ] Add "© OpenStreetMap contributors" more prominently (e.g., on results pages)
-
-### For Future (eBird Integration) 📅
-- [ ] Register for eBird API key
-- [ ] Add eBird attribution prominently
-- [ ] Review eBird terms for commercial use
-- [ ] Contact Cornell Lab if commercializing
 
 ---
 
 ## 📋 Recommendations
 
-### Immediate Actions (Priority: High)
+### Completed
+- [x] Footer attribution updated ("© OpenStreetMap contributors", eBird, Geoapify credits)
+- [x] Per-image credits on bird cards (Commons author + license, linked; Unsplash credited)
 
-1. **Update Footer Attribution**
-   ```tsx
-   <footer className="bg-white border-t border-gray-200 mt-16">
-     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-       <p className="text-center text-sm text-gray-600">
-         Geocoding & location data: © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (Nominatim + Overpass API)
-         {' • '}
-         Bird images: <a href="https://commons.wikimedia.org">Wikimedia Commons</a>
-       </p>
-     </div>
-   </footer>
-   ```
-
-2. **Add Data Sources Page**
+### Remaining
+1. **Add Data Sources Page**
    Create `/app/about/page.tsx` with detailed attribution and links
 
-3. **Add Image Credits**
-   Update bird data structure to include photographer attribution
-
-### Medium Priority
-
-4. **Consider Unsplash API**
+2. **Consider Unsplash API** (if mock data keeps Unsplash photos)
    - Free tier: 50 requests/hour
    - Provides automatic attribution
    - More reliable than hotlinking
 
-5. **Add LICENSE_DATA.md**
-   - Separate file listing all data licenses
-   - Link from main LICENSE.md
-
-### Long-term
-
-6. **eBird API Integration**
-   - Register for API key
-   - Implement proper attribution
-   - Review commercial terms if monetizing
-
-7. **Consider WikiMedia Commons**
-   - Alternative to Unsplash for bird images
-   - More stable, comprehensive collection
-   - Clear attribution requirements
-   - Free API available
+3. **Review eBird commercial terms if monetizing**
+   - Current usage (free, non-commercial) is compliant
+   - 📧 Contact: ebird@cornell.edu before commercializing
 
 ---
 
@@ -388,7 +294,7 @@ Data sources:
 
 ## 🔄 Last Updated
 
-**Date:** March 24, 2025
+**Date:** October 2, 2026
 **Reviewed by:** Project maintainers
 **Next Review:** When adding new data sources or changing existing integrations
 

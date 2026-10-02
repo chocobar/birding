@@ -33,7 +33,8 @@ export default function Home() {
 
   const birds = birdQuery.data?.birds ?? [];
   const isLiveData = birdQuery.data?.isLiveData ?? false;
-  const locations = locationQuery.data ?? [];
+  const locations = locationQuery.data?.locations ?? [];
+  const dataSource = locationQuery.data?.source;
 
   const toggleTheme = () => {
     const isDark = document.documentElement.classList.toggle('dark');
@@ -107,6 +108,7 @@ export default function Home() {
               isRetrying={locationQuery.isRefetching}
               onRetry={() => locationQuery.refetch()}
               postcode={locationName}
+              dataSource={dataSource}
             />
           </div>
         )}
@@ -160,6 +162,21 @@ export default function Home() {
                 </p>
               </div>
             </div>
+
+            <div className="max-w-3xl mx-auto mt-12 text-center">
+              <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
+                A free bird finder for every location
+              </h3>
+              <p className="text-[var(--text-secondary)] text-sm sm:text-base leading-relaxed">
+                Birding Discovery is a free online bird guide for birders of every
+                level. Search any city, town or postcode to see which birds are in
+                your area right now, browse recent sightings from the eBird
+                community, and discover the best birdwatching spots near you —
+                from local parks and woodlands to national nature reserves.
+                Whether you are new to bird identification or planning your next
+                birding trip, you can find what is flying nearby in seconds.
+              </p>
+            </div>
           </section>
         )}
       </main>
@@ -167,9 +184,23 @@ export default function Home() {
       {/* Footer */}
       <footer className="border-t border-[var(--border-light)] mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+          {isLiveData && (
+            <p className="text-center text-xs text-[var(--text-secondary)] mb-2">
+              Bird observations provided by{' '}
+              <a href="https://ebird.org" target="_blank" rel="noopener noreferrer" className="text-[var(--brand-green)] underline decoration-[var(--brand-green-light)] hover:decoration-[var(--brand-green)]">eBird</a>
+              {' — '}
+              <a href="https://www.birds.cornell.edu/home/bring-birds-back/" target="_blank" rel="noopener noreferrer" className="text-[var(--brand-green)] underline decoration-[var(--brand-green-light)] hover:decoration-[var(--brand-green)]">Cornell Lab of Ornithology</a>
+            </p>
+          )}
           <p className="text-center text-xs text-[var(--text-secondary)]">
-            Location data from{' '}
-            <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="text-[var(--brand-green)] underline decoration-[var(--brand-green-light)] hover:decoration-[var(--brand-green)]">OpenStreetMap</a>
+            Location data ©{' '}
+            <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="text-[var(--brand-green)] underline decoration-[var(--brand-green-light)] hover:decoration-[var(--brand-green)]">OpenStreetMap contributors</a>
+            {dataSource === 'geoapify' && (
+              <>
+                {' · '}
+                <a href="https://www.geoapify.com/" target="_blank" rel="noopener noreferrer" className="text-[var(--brand-green)] underline decoration-[var(--brand-green-light)] hover:decoration-[var(--brand-green)]">Powered by Geoapify</a>
+              </>
+            )}
             {' · '}
             Geocoding by{' '}
             <a href="https://nominatim.openstreetmap.org" target="_blank" rel="noopener noreferrer" className="text-[var(--brand-green)] underline decoration-[var(--brand-green-light)] hover:decoration-[var(--brand-green)]">Nominatim</a>

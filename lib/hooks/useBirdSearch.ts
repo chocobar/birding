@@ -2,8 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { getBirdsForLocation, BirdResult } from '@/lib/api/birdClient';
-import { getNearbyLocations, getOsmLineGeometry } from '@/lib/api/locationClient';
-import { Location } from '@/lib/types';
+import { getNearbyLocations, getOsmLineGeometry, NearbyLocationsResult } from '@/lib/api/locationClient';
 
 /**
  * Fetch birds for a geocoded location. Cached by lat/lng.
@@ -19,13 +18,13 @@ export function useBirdSearch(latitude: number | null, longitude: number | null)
 /**
  * Fetch nearby locations for a geocoded position. Cached by lat/lng.
  *
- * No automatic retry: the server already retries across Overpass endpoints
- * and bounds its own worst case at ~35s, so a client-side retry would only
- * double the skeleton-screen wait before the error state (which has its own
- * explicit "Try again" button) appears.
+ * No automatic retry: the server caches results and bounds its own worst
+ * case, so a client-side retry would only double the skeleton-screen wait
+ * before the error state (which has its own explicit "Try again" button)
+ * appears.
  */
 export function useLocationSearch(latitude: number | null, longitude: number | null) {
-  return useQuery<Location[]>({
+  return useQuery<NearbyLocationsResult>({
     queryKey: ['locations', latitude, longitude],
     queryFn: () => getNearbyLocations(latitude!, longitude!),
     enabled: latitude !== null && longitude !== null,

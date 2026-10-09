@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { Location, LocationDataSource } from '@/lib/types';
-import { fetchGeoapifyLocations, getGeoapifyApiKey } from '@/lib/api/geoapify';
+import { dedupeByName, fetchGeoapifyLocations, getGeoapifyApiKey } from '@/lib/api/geoapify';
+import { fetchTrailRelations } from '@/lib/api/overpass';
 
 const DEFAULT_RADIUS_MILES = 5;
 const MAX_RADIUS_MILES = 20;
@@ -98,6 +99,123 @@ function revalidateStale(key: string, latitude: number, longitude: number, radiu
   startRefresh(key, latitude, longitude, radiusMiles).catch(() => {});
 }
 
+// --- Trails (named walking-route relations, from Overpass) ---
+// Cached separately from the Geoapify list: route relations change on OSM
+// timescales of months (vs weeks for parks), so they are reused for an hour,
+// and an Overpass incident must never delay or fail the Geoapify-served list.
+// A failed trails load leaves a negative marker that suppresses retries for a
+// cooldown, so a cold search during an Overpass outage pays the fetch timeout
+// once per grid cell instead of on every request.
+
+const TRAILS_TTL_MS = 60 * 60 * 1000; // fresh results served for 1 hour
+const TRAILS_KEEP_MS = 24 * 60 * 60 * 1000;
+const TRAILS_COOLDOWN_MS = 5 * 60 * 1000;
+const MAX_TRAILS_RADIUS_MILES = 5; // the trails query caps its own radius (relation `around` cost)
+const MAX_TRAILS_CACHE_ENTRIES = 500;
+
+interface TrailsCacheEntry {
+  locations: Location[];
+  freshUntil: number;
+  keepUntil: number;
+  retryAfter?: number;
+}
+
+const trailsCache = new Map<string, TrailsCacheEntry>();
+const trailsInflight = new Map<string, Promise<Location[]>>();
+
+function trailsCacheKey(latitude: number, longitude: number, radiusMiles: number): string {
+  // Share one entry across search radii at or above the query's own cap
+  return `${latitude.toFixed(3)},${longitude.toFixed(3)}:t${Math.min(radiusMiles, MAX_TRAILS_RADIUS_MILES)}`;
+}
+
+function startTrailsLoad(key: string, latitude: number, longitude: number, radiusMiles: number): Promise<Location[]> {
+  const promise = fetchTrailRelations(latitude, longitude, radiusMiles * MILES_TO_METERS)
+    .then((trails) => {
+      const now = Date.now();
+      trailsCache.set(key, {
+        locations: trails,
+        freshUntil: now + TRAILS_TTL_MS,
+        keepUntil: now + TRAILS_KEEP_MS,
+      });
+      if (trailsCache.size > MAX_TRAILS_CACHE_ENTRIES) {
+        const oldest = trailsCache.keys().next().value;
+        if (oldest) trailsCache.delete(oldest);
+      }
+      return trails;
+    })
+    .catch((error) => {
+      console.warn('Trail relations unavailable (Overpass):', error);
+      const now = Date.now();
+      const existing = trailsCache.get(key);
+      if (existing) {
+        // Keep serving the previous list; just pause revalidation for the
+        // cooldown so a struggling Overpass is not re-queried on every
+        // request.
+        trailsCache.set(key, { ...existing, retryAfter: now + TRAILS_COOLDOWN_MS });
+      } else {
+        // Negative marker: always-stale empty list that blocks revalidation
+        // for the cooldown. Callers still see this request's rejection.
+        trailsCache.set(key, {
+          locations: [],
+          freshUntil: now - 1,
+          keepUntil: now + TRAILS_COOLDOWN_MS,
+          retryAfter: now + TRAILS_COOLDOWN_MS,
+        });
+      }
+      throw error;
+    })
+    .finally(() => trailsInflight.delete(key));
+  trailsInflight.set(key, promise);
+  return promise;
+}
+
+function revalidateTrailsStale(key: string, latitude: number, longitude: number, radiusMiles: number, entry: TrailsCacheEntry): void {
+  if (trailsInflight.has(key)) return;
+  if (entry.retryAfter && Date.now() < entry.retryAfter) return;
+  startTrailsLoad(key, latitude, longitude, radiusMiles).catch(() => {});
+}
+
+/**
+ * Trails for a grid cell: hour-fresh reuse, stale-while-revalidate, and a
+ * negative marker after failures. Rejects only on a cold load that itself
+ * failed; the handler degrades to a trails-less list in that case.
+ */
+async function getTrailsCached(latitude: number, longitude: number, radiusMiles: number): Promise<Location[]> {
+  const key = trailsCacheKey(latitude, longitude, radiusMiles);
+  const entry = trailsCache.get(key);
+
+  if (entry) {
+    if (Date.now() > entry.keepUntil) {
+      trailsCache.delete(key);
+    } else {
+      if (Date.now() > entry.freshUntil) {
+        revalidateTrailsStale(key, latitude, longitude, radiusMiles, entry);
+      }
+      return entry.locations;
+    }
+  }
+
+  const inflight = trailsInflight.get(key);
+  if (inflight) return inflight;
+  return startTrailsLoad(key, latitude, longitude, radiusMiles);
+}
+
+/**
+ * Trails lead the merged list's trail content; named path ways that share a
+ * trail relation's name are that route's member segments and would otherwise
+ * appear twice (the relation carries the name; Geoapify returns its fragments
+ * individually).
+ */
+function mergeTrails(locations: Location[], trails: Location[]): Location[] {
+  if (trails.length === 0) return locations;
+  const trailNames = new Set(trails.map((trail) => trail.name.toLowerCase()));
+  const merged = [
+    ...trails,
+    ...locations.filter((location) => location.type !== 'path' || !trailNames.has(location.name.toLowerCase())),
+  ];
+  return dedupeByName(merged.sort((a, b) => a.distance - b.distance));
+}
+
 async function getLocationsCached(
   latitude: number,
   longitude: number,
@@ -177,8 +295,11 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const { locations, source } = await getLocationsCached(lat, lng, radius);
-    return Response.json({ locations, isLiveData: true, source });
+    const [{ locations, source }, trails] = await Promise.all([
+      getLocationsCached(lat, lng, radius),
+      getTrailsCached(lat, lng, radius).catch(() => [] as Location[]),
+    ]);
+    return Response.json({ locations: mergeTrails(locations, trails), isLiveData: true, source });
   } catch (error) {
     console.error('Failed to load nearby locations:', error);
     // No data and no stale cache to serve: report the outage honestly so the

@@ -9,6 +9,7 @@ This document details all external data sources used by Birding Discovery, their
 | Data Source | Purpose | License | API Key Required | Attribution Required |
 |-------------|---------|---------|------------------|---------------------|
 | Geoapify (Places & Geocoding APIs) | Primary geocoding + location data (when `GEOAPIFY_API_KEY` is set) | Serves OpenStreetMap data under ODbL 1.0 | ✅ Yes (free) | ✅ Yes (© OpenStreetMap contributors) |
+| Overpass (OpenStreetMap) | Trail discovery: named walking-route relations | ODbL 1.0 | ❌ No | ✅ Yes |
 | Nominatim (OpenStreetMap) | Fallback geocoding (search + reverse) | ODbL 1.0 | ❌ No | ✅ Yes |
 | Unsplash | Bird photography | Unsplash License | ❌ No | ✅ Yes (per image) |
 | Mock Bird Data | Bird species information | Original content | N/A | ❌ No |
@@ -18,8 +19,8 @@ This document details all external data sources used by Birding Discovery, their
 ## 1️⃣ Geoapify (Places & Geocoding APIs)
 
 ### What We Use
-- Nearby location data: parks, nature reserves, greens, water bodies and walking paths
-- On-demand geometry for walking-route relations and trail ways (Place Details API)
+- Nearby location data: parks, nature reserves, greens, water bodies and named path ways
+- On-demand geometry for trail-route relations and path ways (Place Details API)
 - Forward geocoding (place name/postcode → latitude/longitude) and reverse geocoding
 
 ### API Endpoints
@@ -55,11 +56,42 @@ The OSM credit appears in the site footer and beneath the results list; the "Pow
 - Requests are bounded by the app's existing server-side cache (10 min fresh / 24 h stale) and SWR revalidation
 
 ### Fallback Behavior
-Geocoding falls back to the public Nominatim service when the key is absent or a Geoapify call fails. The nearby-locations feature has no fallback and requires the key.
+Geocoding falls back to the public Nominatim service when the key is absent or a Geoapify call fails. The nearby-locations feature (parks, water, path ways) has no fallback and requires the key; trails are fetched separately from Overpass and degrade independently.
 
 ---
 
-## 2️⃣ Nominatim (OpenStreetMap Geocoding)
+## 2️⃣ Overpass (OpenStreetMap Trail Discovery)
+
+### What We Use
+- Trail discovery: **named walking-route relations** (`route=hiking|foot|walking`, network grades lwn/rwn/nwn) — the curated, waymarked trails people walk. No other API in the stack exposes these; Geoapify's highway categories return raw path way segments only.
+- Trails are enrichment: an Overpass outage hides trails from the list but never fails it (parks and water keep coming from Geoapify).
+
+### API Endpoint
+```
+https://overpass-api.de/api/interpreter        (primary)
+https://overpass.kumi.systems/api/interpreter  (fallback)
+```
+`OVERPASS_ENDPOINTS` may override both (e.g. a private instance for production).
+
+### Data Source & License
+
+Overpass serves **raw OpenStreetMap data**:
+- ✅ **Attribution required** ("© OpenStreetMap contributors") — displayed in the app footer and beneath the results list
+- ✅ **Share-Alike** obligations unchanged — we only fetch and display data, no derivative database
+- ✅ **No API key required**
+
+**License URL:** https://opendatacommons.org/licenses/odbl/1.0/
+
+### Our Compliance
+
+**Usage policy compliance** (https://operations.osmfoundation.org/policies/nominatim/ applies to Nominatim; Overpass is governed by the overpass-api.de usage policy):
+- Requests are proxied server-side with an identifying `User-Agent` (`BirdingDiscovery/...`)
+- ONE capped query per search (centre points only, never member geometry in list responses; the map modal fetches full trail geometry via Geoapify Place Details)
+- Results cached server-side (1 hour fresh / 24 h stale) so repeated searches don't re-query Overpass
+- The query radius is capped at 5 miles and the result set at 300 relations
+- Automatic fallback to a second public instance; circuit breaker skips endpoints that hang
+
+## 3️⃣ Nominatim (OpenStreetMap Geocoding)
 
 ### What We Use
 - Forward geocoding (place name/postcode → latitude/longitude)
@@ -97,7 +129,7 @@ Location data © OpenStreetMap contributors · Geocoding by Nominatim
 - **Current usage:** ~1-2 requests per user interaction (well within limits)
 
 ---
-## 3️⃣ Unsplash
+## 4️⃣ Unsplash
 
 ### What We Use
 - Bird photography for display cards
@@ -170,7 +202,7 @@ Display credit in UI:
 
 ---
 
-## 4️⃣ Mock Bird Data
+## 5️⃣ Mock Bird Data
 
 ### What We Use
 - Common UK bird species list (15 birds)
@@ -245,6 +277,7 @@ Each credit links to the image's file page on Wikimedia Commons, where the full 
 - [x] Nominatim - Attribution displayed, usage policy respected (User-Agent + throttle)
 - [x] OpenStreetMap - "© OpenStreetMap contributors" displayed in footer and results list; map tiles carry the OSM attribution
 - [x] Geoapify - "Powered by Geoapify" displayed whenever Geoapify served the results (via the `/api/locations` `source` field)
+- [x] Overpass - OpenStreetMap data; attribution covered by the always-displayed OSM credit; single capped, cached query with identifying User-Agent
 - [x] eBird - "Powered by eBird" badge + footer credit shown whenever live data is displayed
 - [x] Wikimedia Commons - Per-image author + license credit displayed on each bird card, linked to the Commons file page
 - [x] Unsplash - Mock-data photos credited "Photo via Unsplash"
@@ -294,7 +327,7 @@ Each credit links to the image's file page on Wikimedia Commons, where the full 
 
 ## 🔄 Last Updated
 
-**Date:** October 2, 2026
+**Date:** October 9, 2026
 **Reviewed by:** Project maintainers
 **Next Review:** When adding new data sources or changing existing integrations
 

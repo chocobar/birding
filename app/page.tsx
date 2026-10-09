@@ -5,8 +5,14 @@ import Link from 'next/link';
 import LocationSearch from '@/components/LocationSearch';
 import BirdList from '@/components/BirdList';
 import LocationList from '@/components/LocationList';
-import { useBirdSearch, useLocationSearch } from '@/lib/hooks/useBirdSearch';
+import NotableSightingsStrip from '@/components/NotableSightingsStrip';
+import { useBirdSearch, useLocationSearch, useNotableSightings } from '@/lib/hooks/useBirdSearch';
 import { GeocodedLocation } from '@/lib/types';
+import {
+  DEFAULT_TIME_RANGE_ID,
+  getTimeRange,
+  TimeRangeId,
+} from '@/lib/types/TimeRange';
 import { Bird as BirdIcon, Binoculars, MapPin, Feather, Moon, Sun } from 'lucide-react';
 
 interface Coords {
@@ -17,9 +23,12 @@ interface Coords {
 export default function Home() {
   const [locationName, setLocationName] = useState('');
   const [coords, setCoords] = useState<Coords | null>(null);
+  const [timeRangeId, setTimeRangeId] = useState<TimeRangeId>(DEFAULT_TIME_RANGE_ID);
 
-  const birdQuery = useBirdSearch(coords?.latitude ?? null, coords?.longitude ?? null);
+  const timeRange = getTimeRange(timeRangeId);
+  const birdQuery = useBirdSearch(coords?.latitude ?? null, coords?.longitude ?? null, timeRange.days);
   const locationQuery = useLocationSearch(coords?.latitude ?? null, coords?.longitude ?? null);
+  const notableQuery = useNotableSightings(coords?.latitude ?? null, coords?.longitude ?? null);
 
   const handleSearch = (location: GeocodedLocation) => {
     setLocationName(location.displayName);
@@ -33,8 +42,13 @@ export default function Home() {
 
   const birds = birdQuery.data?.birds ?? [];
   const isLiveData = birdQuery.data?.isLiveData ?? false;
+  const coverageLimited = birdQuery.data?.coverageLimited ?? false;
   const locations = locationQuery.data?.locations ?? [];
   const dataSource = locationQuery.data?.source;
+  const notableSightings = notableQuery.data?.sightings ?? [];
+
+  // eBird deserves attribution whenever any of its data is shown
+  const hasEbirdData = isLiveData || (notableQuery.data?.isLiveData ?? false);
 
   const toggleTheme = () => {
     const isDark = document.documentElement.classList.toggle('dark');
@@ -93,11 +107,25 @@ export default function Home() {
         {/* Results Section */}
         {hasSearched && !error && (
           <div className="space-y-14 pb-16">
+            {/* Rare Sightings Strip (self-hiding when unavailable) */}
+            {coords && (
+              <NotableSightingsStrip
+                sightings={notableSightings}
+                latitude={coords.latitude}
+                longitude={coords.longitude}
+                isLoading={notableQuery.isLoading}
+              />
+            )}
+
             {/* Birds Section */}
             <BirdList
               birds={birds}
               isLoading={isLoadingBirds}
               isLiveData={isLiveData}
+              timeRangeId={timeRangeId}
+              onTimeRangeChange={setTimeRangeId}
+              coverageLimited={coverageLimited}
+              isUpdating={birdQuery.isFetching && !isLoadingBirds}
             />
 
             {/* Locations Section */}
@@ -184,7 +212,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="border-t border-[var(--border-light)] mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
-          {isLiveData && (
+          {hasEbirdData && (
             <p className="text-center text-xs text-[var(--text-secondary)] mb-2">
               Bird observations provided by{' '}
               <a href="https://ebird.org" target="_blank" rel="noopener noreferrer" className="text-[var(--brand-green)] underline decoration-[var(--brand-green-light)] hover:decoration-[var(--brand-green)]">eBird</a>

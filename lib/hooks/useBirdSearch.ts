@@ -1,17 +1,25 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { getBirdsForLocation, BirdResult } from '@/lib/api/birdClient';
+import { getNotableSightings, NotableResult } from '@/lib/api/notableClient';
 import { getNearbyLocations, getOsmLineGeometry, NearbyLocationsResult } from '@/lib/api/locationClient';
 
 /**
- * Fetch birds for a geocoded location. Cached by lat/lng.
+ * Fetch birds for a geocoded location within a time window. Cached by
+ * lat/lng/window; switching windows keeps the previous list on screen until
+ * the new one arrives.
  */
-export function useBirdSearch(latitude: number | null, longitude: number | null) {
+export function useBirdSearch(
+  latitude: number | null,
+  longitude: number | null,
+  backDays: number
+) {
   return useQuery<BirdResult>({
-    queryKey: ['birds', latitude, longitude],
-    queryFn: () => getBirdsForLocation(latitude!, longitude!),
+    queryKey: ['birds', latitude, longitude, backDays],
+    queryFn: () => getBirdsForLocation(latitude!, longitude!, backDays),
     enabled: latitude !== null && longitude !== null,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -29,6 +37,21 @@ export function useLocationSearch(latitude: number | null, longitude: number | n
     queryFn: () => getNearbyLocations(latitude!, longitude!),
     enabled: latitude !== null && longitude !== null,
     retry: 0,
+  });
+}
+
+/**
+ * Fetch recent notable (rare/unusual) sightings for a geodedic position.
+ * Cached by lat/lng. Best-effort: failures resolve to an empty list so the
+ * strip can be hidden without surfacing an error.
+ */
+export function useNotableSightings(latitude: number | null, longitude: number | null) {
+  return useQuery<NotableResult>({
+    queryKey: ['notable-sightings', latitude, longitude],
+    queryFn: () => getNotableSightings(latitude!, longitude!),
+    enabled: latitude !== null && longitude !== null,
+    retry: 0,
+    staleTime: 1000 * 60 * 15,
   });
 }
 

@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import BirdCard from './BirdCard';
+import TimeRangeFilter from './TimeRangeFilter';
 import { Bird, ChevronDown } from 'lucide-react';
 import { BirdSoundInfo } from '@/lib/api/xenoCantoLookup';
+import { getTimeRange, TimeRangeId } from '@/lib/types/TimeRange';
 
 interface BirdData {
   id: string;
@@ -27,10 +29,17 @@ interface BirdListProps {
   birds: BirdData[];
   isLoading?: boolean;
   isLiveData?: boolean;
+  timeRangeId?: TimeRangeId;
+  onTimeRangeChange?: (id: TimeRangeId) => void;
+  coverageLimited?: boolean;
+  isUpdating?: boolean;
 }
 
 /** How many birds to show per page */
 const PAGE_SIZE = 6;
+
+/** /api/bird-images and /api/bird-sounds accept at most 20 birds per request */
+const BATCH_SIZE = 20;
 
 function SkeletonCard() {
   return (
@@ -46,75 +55,118 @@ function SkeletonCard() {
   );
 }
 
+/** Distinct species within a set of sighting records (image lookups are per species) */
+function uniqueSpecies(birds: BirdData[]): BirdData[] {
+  const seen = new Set<string>();
+  return birds.filter((b) => {
+    if (seen.has(b.commonName)) return false;
+    seen.add(b.commonName);
+    return true;
+  });
+}
+
 /**
- * Fetch image URLs for a list of birds in a single batch request.
+ * Fetch image URLs for a list of birds, batching into requests of at most
+ * BATCH_SIZE entries.
  */
 async function fetchBirdImages(
   birds: BirdData[]
 ): Promise<Record<string, BirdImageInfo>> {
   if (birds.length === 0) return {};
 
-  try {
-    const payload = birds.map((b) => ({
-      name: b.commonName,
-      scientificName: b.scientificName,
-    }));
-
-    const res = await fetch('/api/bird-images', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ birds: payload }),
-    });
-
-    if (!res.ok) return {};
-
-    const data: { images: Record<string, BirdImageInfo> } = await res.json();
-
-    // Flatten to name → image info map (imageUrl + attribution kept together
-    // so each photo can be credited as its Commons license requires)
-    const map: Record<string, BirdImageInfo> = {};
-    for (const [name, info] of Object.entries(data.images)) {
-      map[name] = info;
-    }
-    return map;
-  } catch {
-    return {};
+  const batches: BirdData[][] = [];
+  for (let i = 0; i < birds.length; i += BATCH_SIZE) {
+    batches.push(birds.slice(i, i + BATCH_SIZE));
   }
+
+  const emptyResult: BirdImageInfo = {
+    imageUrl: null,
+    attribution: null,
+    attributionUrl: null,
+  };
+
+  const settled = await Promise.allSettled(
+    batches.map(async (batch) => {
+      const res = await fetch('/api/bird-images', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          birds: batch.map((b) => ({
+            name: b.commonName,
+            scientificName: b.scientificName,
+          })),
+        }),
+      });
+
+      if (!res.ok) return {};
+      const data: { images: Record<string, BirdImageInfo> } = await res.json();
+      return data.images ?? {};
+    })
+  );
+
+  // Flatten to name → image info map (imageUrl + attribution kept together
+  // so each photo can be credited as its Commons license requires)
+  const map: Record<string, BirdImageInfo> = {};
+  for (const result of settled) {
+    if (result.status === 'fulfilled') {
+      for (const [name, info] of Object.entries(result.value)) {
+        map[name] = info ?? emptyResult;
+      }
+    }
+  }
+  return map;
 }
 
 /**
- * Fetch sound recordings for a list of birds in a single batch request,
- * keyed by scientific name. Best effort: any failure yields an empty map
- * (cards simply show no play button).
+ * Fetch sound recordings for a list of scientific names, batching into
+ * requests of at most BATCH_SIZE entries. Keyed by scientific name.
+ * Best effort: any failure yields an empty map (cards simply show no
+ * play button).
  */
 async function fetchBirdSounds(
-  birds: BirdData[]
+  names: string[]
 ): Promise<Record<string, BirdSoundInfo>> {
-  const withNames = birds.filter((b) => b.scientificName?.trim());
-  if (withNames.length === 0) return {};
+  if (names.length === 0) return {};
 
-  try {
-    const res = await fetch('/api/bird-sounds', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        birds: withNames.map((b) => ({
-          name: b.commonName,
-          scientificName: b.scientificName,
-        })),
-      }),
-    });
-
-    if (!res.ok) return {};
-
-    const data: { sounds?: Record<string, BirdSoundInfo> } = await res.json();
-    return data.sounds ?? {};
-  } catch {
-    return {};
+  const batches: string[][] = [];
+  for (let i = 0; i < names.length; i += BATCH_SIZE) {
+    batches.push(names.slice(i, i + BATCH_SIZE));
   }
+
+  const settled = await Promise.allSettled(
+    batches.map(async (batch) => {
+      const res = await fetch('/api/bird-sounds', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          birds: batch.map((scientificName) => ({ scientificName })),
+        }),
+      });
+
+      if (!res.ok) return {};
+      const data: { sounds?: Record<string, BirdSoundInfo> } = await res.json();
+      return data.sounds ?? {};
+    })
+  );
+
+  const map: Record<string, BirdSoundInfo> = {};
+  for (const result of settled) {
+    if (result.status === 'fulfilled') {
+      Object.assign(map, result.value);
+    }
+  }
+  return map;
 }
 
-export default function BirdList({ birds, isLoading = false, isLiveData }: BirdListProps) {
+export default function BirdList({
+  birds,
+  isLoading = false,
+  isLiveData,
+  timeRangeId,
+  onTimeRangeChange,
+  coverageLimited = false,
+  isUpdating = false,
+}: BirdListProps) {
   const [imageMap, setImageMap] = useState<Record<string, BirdImageInfo>>({});
   const [soundMap, setSoundMap] = useState<Record<string, BirdSoundInfo>>({});
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -133,30 +185,49 @@ export default function BirdList({ birds, isLoading = false, isLiveData }: BirdL
     setVisibleCount(PAGE_SIZE);
   }
 
-  // Batch-fetch images whenever the bird list changes
+  const visibleBirds = useMemo(
+    () => birds.slice(0, visibleCount),
+    [birds, visibleCount]
+  );
+
+  // Batch-fetch images for the species currently on screen, skipping names
+  // that were resolved before so paging deeper only looks up new arrivals
   useEffect(() => {
-    if (!birds || birds.length === 0) return;
+    if (!visibleBirds || visibleBirds.length === 0) return;
+
+    const missing = uniqueSpecies(visibleBirds).filter(
+      (b) => !(b.commonName in imageMap)
+    );
+    if (missing.length === 0) return;
 
     let cancelled = false;
 
-    fetchBirdImages(birds).then((map) => {
-      if (!cancelled) setImageMap(map);
+    fetchBirdImages(missing).then((map) => {
+      if (!cancelled && Object.keys(map).length > 0) {
+        setImageMap((prev) => ({ ...prev, ...map }));
+      }
     });
 
     return () => {
       cancelled = true;
     };
-  }, [birds]);
+  }, [visibleBirds, imageMap]);
 
-  // Batch-fetch recordings for the birds currently visible. The server
+  // Batch-fetch recordings for the species currently on screen. The server
   // caches species → recording lookups, so paging ("Show more") only
   // queries the newly revealed species.
   useEffect(() => {
-    if (!birds || birds.length === 0) return;
+    if (!visibleBirds || visibleBirds.length === 0) return;
+
+    const missing = uniqueSpecies(visibleBirds)
+      .map((b) => b.scientificName?.trim())
+      .filter((name): name is string => Boolean(name))
+      .filter((name) => !(name in soundMap));
+    if (missing.length === 0) return;
 
     let cancelled = false;
 
-    fetchBirdSounds(birds.slice(0, visibleCount)).then((map) => {
+    fetchBirdSounds(missing).then((map) => {
       if (!cancelled && Object.keys(map).length > 0) {
         setSoundMap((prev) => ({ ...prev, ...map }));
       }
@@ -165,7 +236,7 @@ export default function BirdList({ birds, isLoading = false, isLiveData }: BirdL
     return () => {
       cancelled = true;
     };
-  }, [birds, visibleCount]);
+  }, [visibleBirds, soundMap]);
 
   /** Stop the current clip and reset playback state (no-op when idle). */
   const stopPlayback = useCallback(() => {
@@ -180,8 +251,8 @@ export default function BirdList({ birds, isLoading = false, isLiveData }: BirdL
     setIsSoundLoading(false);
   }, []);
 
-  // Stop playback when a new search swaps the list in, and never leave
-  // audio running after the list unmounts.
+  // Stop playback when a new search (or time-range swap) changes the list,
+  // and never leave audio running after the list unmounts.
   useEffect(() => {
     return () => {
       stopPlayback();
@@ -259,35 +330,60 @@ export default function BirdList({ birds, isLoading = false, isLiveData }: BirdL
     );
   }
 
-  const visibleBirds = birds.slice(0, visibleCount);
+  const windowLabel = timeRangeId ? getTimeRange(timeRangeId).label.toLowerCase() : null;
   const hasMore = visibleCount < birds.length;
 
   return (
     <section className="w-full" aria-label="Bird results">
       <div className="mb-8">
-        <h2 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">
-          {isLiveData ? 'Recent Bird Sightings' : 'Common Birds in Your Area'}
-        </h2>
-        <p className="text-[var(--text-secondary)] mt-1">
-          {birds.length} species {isLiveData ? 'recently observed near this location' : 'frequently observed in this location'}
-        </p>
-        {isLiveData !== undefined && (
-          isLiveData ? (
-            <a
-              href="https://ebird.org"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/70 dark:text-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-950 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1"
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              Powered by eBird
-            </a>
-          ) : (
-            <span className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/70 dark:text-amber-200 dark:border-amber-800">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-              Sample data (eBird unavailable)
-            </span>
-          )
+        <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
+          <div>
+            <h2 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">
+              {isLiveData ? 'Recent Bird Sightings' : 'Common Birds in Your Area'}
+            </h2>
+            <p className="text-[var(--text-secondary)] mt-1">
+              {isLiveData
+                ? `${birds.length} sightings ${windowLabel ? `in the ${windowLabel}` : 'recently observed'} near this location`
+                : `${birds.length} species frequently observed in this location`}
+              {isUpdating && (
+                <span className="ml-2 inline-flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand-green)] animate-pulse" />
+                  Updating…
+                </span>
+              )}
+            </p>
+            {isLiveData !== undefined && (
+              isLiveData ? (
+                <a
+                  href="https://ebird.org"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/70 dark:text-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-950 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  Powered by eBird
+                </a>
+              ) : (
+                <span className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/70 dark:text-amber-200 dark:border-amber-800">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                  Sample data (eBird unavailable)
+                </span>
+              )
+            )}
+          </div>
+          {isLiveData && timeRangeId && onTimeRangeChange && (
+            <TimeRangeFilter
+              value={timeRangeId}
+              onChange={onTimeRangeChange}
+              disabled={isUpdating}
+            />
+          )}
+        </div>
+        {isLiveData && coverageLimited && (
+          <p className="mt-3 text-xs text-[var(--text-secondary)] max-w-2xl">
+            eBird serves live data for the last 30 days. Sightings from earlier
+            in this period appear here as our archive builds up over time.
+          </p>
         )}
       </div>
 
@@ -323,7 +419,7 @@ export default function BirdList({ birds, isLoading = false, isLiveData }: BirdL
             onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
             className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-medium text-[var(--brand-green)] bg-[var(--warm-sand)] border border-[var(--border-light)] rounded-full hover:bg-[var(--brand-green)] hover:text-white hover:border-[var(--brand-green)] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--brand-green)] focus:ring-offset-2"
           >
-            Show more birds
+            Show more sightings
             <ChevronDown className="w-4 h-4" />
           </button>
           <p className="mt-2 text-xs text-[var(--text-secondary)]">

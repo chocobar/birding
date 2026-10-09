@@ -11,6 +11,7 @@ const MapModal = dynamic(() => import('./MapModal'), { ssr: false });
 interface BirdCardProps {
   bird: {
     id: string;
+    speciesCode?: string;
     commonName: string;
     scientificName: string;
     imageUrl?: string;
@@ -42,9 +43,11 @@ export default function BirdCard({
   const mapKey = `bird:${bird.id}`;
   const isMapOpen = openMapId === mapKey;
 
-  // Build outbound link: eBird species page for live data, Wikipedia for mock/fallback
+  // Build outbound link: eBird species page for live data, Wikipedia for mock/fallback.
+  // Live records get a unique per-sighting id, so the species code is what
+  // points at the eBird species page.
   const learnMoreUrl = isLiveData
-    ? `https://ebird.org/species/${bird.id}`
+    ? `https://ebird.org/species/${bird.speciesCode ?? bird.id}`
     : `https://en.wikipedia.org/wiki/${bird.scientificName.replace(/ /g, '_')}`;
   const sourceName = isLiveData ? 'eBird' : 'Wikipedia';
 

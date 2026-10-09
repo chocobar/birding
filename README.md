@@ -112,7 +112,8 @@ birding/
 ├── components/
 │   ├── LocationSearch.tsx         # Location search with autocomplete
 │   ├── BirdCard.tsx               # Individual bird display with Learn more link
-│   ├── BirdList.tsx               # Bird grid with loading states
+│   ├── BirdList.tsx               # Bird grid with time filter and loading states
+│   ├── TimeRangeFilter.tsx        # Sightings time-window pill filter
 │   ├── LocationCard.tsx           # Individual location display
 │   ├── LocationList.tsx           # Location list
 │   ├── LocationMap.tsx            # Leaflet.js interactive map component
@@ -165,6 +166,25 @@ The app fetches real bird sighting data from eBird. The API key is kept **server
 > **Security note:** The variable is named `EBIRD_API_KEY` (no `NEXT_PUBLIC_` prefix) so that Next.js does **not** bundle it into client-side JavaScript. All eBird requests are proxied through `/api/birds` on the server.
 
 If `EBIRD_API_KEY` is not set, the app gracefully falls back to sample bird data.
+
+### Sightings time filter & archive
+
+The sightings list shows individual records (one card per species per location
+per day), paginated with a "Show more sightings" button. A time filter narrows
+the list to the last month, last 3 months or last 6 months.
+
+eBird's data API only serves the **last 30 days** of observations, so every
+request fetches that maximum live window and merges the results into a
+server-side archive (`lib/server/sightingArchive.ts`). Windows beyond 30 days
+draw on the archive and grow richer as the site is used; until enough history
+has accumulated, the list notes that it doesn't yet reach the start of the
+requested window.
+
+The archive is a JSON file written to `.data/sightings-archive.json` next to
+the app, falling back to the OS temp directory on read-only filesystems (e.g.
+serverless hosting, where it is best-effort per instance). Set
+`SIGHTINGS_ARCHIVE_PATH` to pin a custom location. Records older than 180
+days are pruned automatically.
 
 ### Geoapify Setup
 

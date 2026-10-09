@@ -29,14 +29,64 @@ const GEOCODE_TIMEOUT_MS = 8000;
 // - greens: parks (the parent key includes the garden and nature_reserve child
 //   categories), forests, heath/moor and other protected areas
 // - water: open water bodies and wetlands
-// - trails: named paths, capped like the trails query
-// (Named hiking-route relations have no Places category; highway.footway is
-// deliberately excluded: footways are urban pavements and passages, not trails.)
+// - paths: named, publicly accessible path ways. highway.footway is
+//   deliberately excluded: footways are urban pavements and passages, not
+//   walking paths.
+// Path ways are demoted below trail route relations and only surface when
+// their OSM tags carry hiking signals (see isTrailLikePath) — plain
+// highway=path includes countless short connector links between roads that
+// are not trails anyone would set out to walk.
 const GREENS_CATEGORIES = 'leisure.park,natural.forest,natural.heath_moor,natural.protected_area';
 const WATER_CATEGORIES = 'natural.water,natural.wetland';
-const TRAIL_CATEGORIES = 'highway.path';
+const PATH_CATEGORIES = 'highway.path';
+// Server-side conditions for the path query: require a name (so unnamed
+// segments stop consuming the result cap) and public access (excludes
+// access=private/no and access_limited places).
+const PATH_CONDITIONS = 'named,access';
 const GREENS_LIMIT = 500;
-const TRAILS_LIMIT = 100;
+const PATHS_LIMIT = 100;
+
+/** Unpaved OSM surface values that mark a way as a walking surface rather
+ * than an urban pavement. */
+const UNPAVED_SURFACES = new Set([
+  'grass', 'ground', 'dirt', 'earth', 'gravel', 'fine_gravel', 'compacted',
+  'wood', 'woodchips', 'sand', 'mud', 'pebblestone', 'rock', 'unpaved',
+]);
+
+/**
+ * Raw OSM tags of the place (Geoapify nests the source record's fields under
+ * datasource.raw). Trail signals live there, not in the derived categories.
+ */
+function rawTag(raw: Record<string, unknown> | undefined, key: string): string | undefined {
+  const value = raw?.[key];
+  return typeof value === 'string' ? value : undefined;
+}
+
+/**
+ * Would a walker set out to walk this named path way? Connectors between
+ * roads are named like trails but carry none of the tags mappers put on real
+ * walking paths, so a way qualifies only when the raw OSM tags show hiking
+ * intent: difficulty grading, waymarking, a designated right of way, formal
+ * status, or an unpaved walking surface. Ways without usable raw tags
+ * (a Geoapify response format change) are rejected — silently reverting to
+ * connector spam would be the exact regression this filter exists to stop.
+ */
+export function isTrailLikePath(raw: Record<string, unknown> | undefined): boolean {
+  if (!raw) return false;
+
+  const access = rawTag(raw, 'access');
+  if (access === 'private' || access === 'no') return false;
+  const foot = rawTag(raw, 'foot');
+  if (foot === 'private' || foot === 'no') return false;
+
+  return (
+    !!rawTag(raw, 'sac_scale') ||
+    !!rawTag(raw, 'trail_visibility') ||
+    !!rawTag(raw, 'designation') ||
+    rawTag(raw, 'informal') === 'no' ||
+    UNPAVED_SURFACES.has(rawTag(raw, 'surface') ?? '')
+  );
+}
 
 /** Collapse consecutive results that share a type and name (rivers and named
  * paths arrive as many short segments from the Places API). */
@@ -53,21 +103,24 @@ export function dedupeByName(locations: Location[]): Location[] {
   return Array.from(seen.values());
 }
 
-export function generateDescription(tags: Record<string, string> | undefined, type: Location['type']): string {
+export function generateDescription(
+  tags: Record<string, string | undefined> | undefined,
+  type: Location['type']
+): string {
   const descriptions: Record<Location['type'], string> = {
     water: 'Natural water body - ideal for waterfowl and wetland bird species',
     woodland: 'Wooded area - great for woodland birds and wildlife',
     nature_reserve: 'Protected nature reserve with diverse habitats',
     park: 'Public park with green spaces and nature areas',
-    trail: 'Walking trail - good for bird watching on foot',
-    route: 'Named walking route made up of linked paths',
+    trail: 'Named walking route made up of linked paths',
+    path: 'Named path - a single walking path, possibly a link between roads',
   };
 
   let description = descriptions[type];
 
   if (!tags) return description;
 
-  if (type === 'route') {
+  if (type === 'trail') {
     if (tags.network === 'nwn') {
       description = 'National Trail - long-distance waymarked walking route';
     } else if (tags.network === 'rwn') {
@@ -131,7 +184,8 @@ async function fetchPlaces(
   latitude: number,
   longitude: number,
   radiusMeters: number,
-  limit: number
+  limit: number,
+  conditions?: string
 ): Promise<GeoapifyPlaceFeature[]> {
   const params = new URLSearchParams({
     categories,
@@ -143,6 +197,7 @@ async function fetchPlaces(
     lang: 'en',
     apiKey,
   });
+  if (conditions) params.set('conditions', conditions);
 
   const response = await fetch(`${PLACES_ENDPOINT}?${params.toString()}`, {
     signal: AbortSignal.timeout(PLACES_TIMEOUT_MS),
@@ -223,6 +278,11 @@ function featureToLocation(
   const properties = feature.properties;
   if (!properties?.name) return null;
 
+  // Path ways must show hiking intent in their raw OSM tags; without that
+  // they are indistinguishable from road connectors (see isTrailLikePath).
+  const raw = properties.datasource?.raw as Record<string, unknown> | undefined;
+  if (type === 'path' && !isTrailLikePath(raw)) return null;
+
   let lat = properties.lat;
   let lon = properties.lon;
   if ((lat === undefined || lon === undefined) && feature.geometry?.coordinates) {
@@ -241,7 +301,10 @@ function featureToLocation(
     latitude: lat,
     longitude: lon,
     distance: calculateDistance(userLat, userLon, lat, lon),
-    description: generateDescription(undefined, type),
+    description: generateDescription(
+      type === 'path' ? (raw as Record<string, string | undefined> | undefined) : undefined,
+      type
+    ),
     tags: leaf ? [leaf] : undefined,
     osmRelationId: osmRef?.type === 'relation' ? osmRef.id : undefined,
     osmWayId: osmRef?.type === 'way' ? osmRef.id : undefined,
@@ -249,11 +312,17 @@ function featureToLocation(
 }
 
 /**
- * Load nearby birding locations via three parallel Places requests (greens,
- * water, trails), sorted by distance and name-deduplicated. Parks and water
- * are the critical content of the list; a circle that genuinely contains
- * neither returns an empty list rather than an error, which the UI renders
+ * Load nearby area features (greens, water) plus named hiking-signal path
+ * ways via three parallel Places requests, sorted by distance and
+ * name-deduplicated. Parks and water are the critical content of the list —
+ * their failure fails the whole load. The paths query is best-effort: it is
+ * the experimental tail (conditions + raw-tag filtering), and losing it must
+ * not blank the parks a birder came for. A circle that genuinely contains
+ * nothing returns an empty list rather than an error, which the UI renders
  * as its "no locations found" state.
+ *
+ * Real trails (named walking-route relations) come from the Overpass client
+ * (lib/api/overpass.ts) and are merged downstream.
  */
 export async function fetchGeoapifyLocations(
   latitude: number,
@@ -263,16 +332,26 @@ export async function fetchGeoapifyLocations(
   const apiKey = getGeoapifyApiKey();
   if (!apiKey) throw new Error('Geoapify API key is not configured');
 
-  const [greens, water, trails] = await Promise.all([
+  const [greensResult, waterResult, pathsResult] = await Promise.allSettled([
     fetchPlaces(apiKey, GREENS_CATEGORIES, latitude, longitude, radiusMeters, GREENS_LIMIT),
     fetchPlaces(apiKey, WATER_CATEGORIES, latitude, longitude, radiusMeters, GREENS_LIMIT),
-    fetchPlaces(apiKey, TRAIL_CATEGORIES, latitude, longitude, radiusMeters, TRAILS_LIMIT),
+    fetchPlaces(apiKey, PATH_CATEGORIES, latitude, longitude, radiusMeters, PATHS_LIMIT, PATH_CONDITIONS),
   ]);
+
+  if (greensResult.status === 'rejected') throw greensResult.reason;
+  if (waterResult.status === 'rejected') throw waterResult.reason;
+  if (pathsResult.status === 'rejected') {
+    console.warn('Geoapify path query failed; serving the list without paths:', pathsResult.reason);
+  }
+
+  const greens = greensResult.status === 'fulfilled' ? greensResult.value : [];
+  const water = waterResult.status === 'fulfilled' ? waterResult.value : [];
+  const paths = pathsResult.status === 'fulfilled' ? pathsResult.value : [];
 
   const locations = [
     ...greens.map((feature) => featureToLocation(feature, classifyGreenFeature(feature.properties?.categories ?? []), latitude, longitude)),
     ...water.map((feature) => featureToLocation(feature, 'water', latitude, longitude)),
-    ...trails.map((feature) => featureToLocation(feature, 'trail', latitude, longitude)),
+    ...paths.map((feature) => featureToLocation(feature, 'path', latitude, longitude)),
   ].filter((location): location is Location => location !== null);
 
   return dedupeByName(locations.sort((a, b) => a.distance - b.distance));

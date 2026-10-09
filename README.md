@@ -27,6 +27,7 @@ A Next.js web application that helps users discover common birds and nearby bird
 - **APIs**:
   - [OpenStreetMap Nominatim](https://nominatim.openstreetmap.org) — Global geocoding and search suggestions
   - [Geoapify](https://www.geoapify.com/) Places & Geocoding APIs — OpenStreetMap-derived location data and geocoding
+  - [Overpass API](https://overpass-api.de/) — Trail discovery: named walking-route relations from OpenStreetMap
   - [eBird API 2.0](https://documenter.getpostman.com/view/664302/S1ENwy59) — Live bird observation data
   - [Wikimedia Commons](https://commons.wikimedia.org) — Bird images
   - Mock bird data (fallback when eBird is unavailable)
@@ -104,6 +105,8 @@ birding/
 │   ├── api/
 │   │   ├── birds/route.ts         # eBird API proxy (server-side, protects API key)
 │   │   ├── geocode/route.ts       # Nominatim geocoding proxy (User-Agent + rate throttle)
+│   │   ├── locations/route.ts     # Nearby locations: Geoapify + Overpass trails, cached
+│   │   ├── geometry/route.ts      # On-demand trail/path geometry (Geoapify Place Details)
 │   │   ├── bird-image/route.ts    # Single bird image proxy
 │   │   └── bird-images/route.ts   # Batch bird image proxy
 │   ├── layout.tsx                 # Root layout with metadata
@@ -122,9 +125,11 @@ birding/
 │   └── Providers.tsx              # React Query provider
 ├── lib/
 │   ├── api/
-│   │   ├── geocodeClient.ts       # Geocoding search + reverse geocoding (via /api/geocode)
 │   │   ├── birdClient.ts          # Bird data (eBird live + mock fallback)
-│   │   ├── locationClient.ts      # OpenStreetMap integration
+│   │   ├── geoapify.ts            # Geoapify Places/geocoding client (locations, paths)
+│   │   ├── overpass.ts            # Overpass client (trail discovery via route relations)
+│   │   ├── geocodeClient.ts       # Geocoding search + reverse geocoding (via /api/geocode)
+│   │   ├── locationClient.ts      # Locations + trail geometry via server proxies
 │   │   └── wikiImageLookup.ts     # Wikipedia/Wikimedia image resolver with caching
 │   ├── hooks/
 │   │   └── useBirdSearch.ts       # React Query hooks for bird & location search
@@ -144,6 +149,7 @@ birding/
 
 - **OpenStreetMap Nominatim**: Free, no authentication required — global geocoding and search suggestions (fallback when Geoapify is not configured)
 - **[Geoapify](https://www.geoapify.com/) Places & Geocoding APIs**: Managed, OpenStreetMap-derived geocoding and location data — requires a free API key; powers nearby locations and is used for geocoding when configured
+- **[Overpass API](https://overpass-api.de/)**: Free, no authentication required — trail discovery via named OpenStreetMap walking-route relations (`route=hiking|foot|walking`). Trails are best-effort enrichment: an Overpass outage hides trails but never fails the location list. `OVERPASS_ENDPOINTS` may point the client at a private instance.
 - **[eBird API 2.0](https://documenter.getpostman.com/view/664302/S1ENwy59)**: Live bird observation data — requires a free API key
 - **Wikimedia Commons**: Bird species images resolved via Wikipedia API — free, no authentication required
 - **Fallback Bird Data**: 15 common UK birds (used when eBird is unavailable)
@@ -208,6 +214,14 @@ Geoapify powers the nearby-locations feature and is also the primary geocoding p
 
 > **Required:** `GEOAPIFY_API_KEY` must be set for the nearby-locations feature to work (`/api/locations` returns an error without it). Geocoding falls back to the public Nominatim service when the key is absent or a Geoapify call fails.
 
+### Trails (Overpass)
+
+The list's trails are **named walking-route relations** from OpenStreetMap (`route=hiking|foot|walking`) — curated, waymarked routes such as "Wandle Trail" or "Diana Princess of Wales Memorial Walk", discovered via one cached Overpass query. Plain path ways from Geoapify only appear under **Paths** and only when their OSM tags carry hiking signals (difficulty grading, waymarking, formal status, or an unpaved surface) so road connectors never masquerade as trails.
+
+- No API key required; the public Overpass instances are used by default
+- `OVERPASS_ENDPOINTS` (optional) overrides the endpoints — list a private instance first for production reliability
+- Trails are best-effort: if Overpass is unavailable, the list serves without trails rather than failing
+
 ## Data Sources & Attribution
 
 This project uses data from multiple sources. We are committed to proper attribution and license compliance.
@@ -247,6 +261,7 @@ Please see **[DATA_ATTRIBUTION.md](DATA_ATTRIBUTION.md)** for comprehensive lice
 
 - ✅ Nominatim — Free, no registration (worldwide, usage policy applies)
 - ✅ Wikimedia Commons — Free, no registration
+- ✅ Overpass — Free, no registration (trail discovery; usage policy applies, queries cached server-side)
 - 🔑 **Geoapify** — **Required** for nearby locations. Free plan (3,000 requests/day), registration at https://myprojects.geoapify.com. Set `GEOAPIFY_API_KEY` in `.env.local`.
 - 🔑 **eBird API** — Free, requires registration at https://ebird.org/api/keygen. Set `EBIRD_API_KEY` in `.env.local`. The app works without it (falls back to sample data).
 

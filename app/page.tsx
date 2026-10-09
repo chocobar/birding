@@ -235,6 +235,9 @@ export default function Home() {
             {' · '}
             Bird images from{' '}
             <a href="https://commons.wikimedia.org" target="_blank" rel="noopener noreferrer" className="text-[var(--brand-green)] underline decoration-[var(--brand-green-light)] hover:decoration-[var(--brand-green)]">Wikimedia Commons</a>
+            {' · '}
+            Bird sounds from{' '}
+            <a href="https://xeno-canto.org" target="_blank" rel="noopener noreferrer" className="text-[var(--brand-green)] underline decoration-[var(--brand-green-light)] hover:decoration-[var(--brand-green)]">Xeno-canto</a>
           </p>
         </div>
       </footer>

@@ -12,6 +12,7 @@ This document details all external data sources used by Birding Discovery, their
 | Overpass (OpenStreetMap) | Trail discovery: named walking-route relations | ODbL 1.0 | ❌ No | ✅ Yes |
 | Nominatim (OpenStreetMap) | Fallback geocoding (search + reverse) | ODbL 1.0 | ❌ No | ✅ Yes |
 | Unsplash | Bird photography | Unsplash License | ❌ No | ✅ Yes (per image) |
+| Xeno-canto | Bird song/call playback on bird cards | Per-recording CC license (varies) | ⚠️ Optional (free with account) | ✅ Yes (recordist + license, per clip) |
 | Mock Bird Data | Bird species information | Original content | N/A | ❌ No |
 
 ---
@@ -249,12 +250,54 @@ A project of the Cornell Lab of Ornithology
 
 ---
 
+## 6️⃣ Xeno-canto (Bird Song Playback)
+
+### What We Use
+- Short song/call recordings played from each bird card's play button
+- Species → recording resolution happens server-side (`/api/bird-sound`, `/api/bird-sounds`); recordings themselves are streamed through `/api/bird-sound/stream?id=<cat.no.>` so the browser never hotlinks the upstream file host
+
+### API Endpoints
+```
+https://xeno-canto.org/api/3/recordings   (primary; requires a free key)
+https://xeno-canto.org/explore?query=...  (keyless fallback)
+https://xeno-canto.org/<id>/download      (audio file, streamed via our proxy)
+```
+
+**Note on API versions:** API v2 (`/api/2/recordings`, keyless) was retired by Xeno-canto in 2026. API v3 requires a key — free for any registered XC member with a verified email (available at https://xeno-canto.org/account; stored server-side as `XENO_CANTO_API_KEY`, never `NEXT_PUBLIC_`). When no key is configured, lookups fall back to Xeno-canto's public explore pages (same metadata, keyless), and the feature still works.
+
+### License
+Each recording carries its own license — most commonly **CC BY-NC-SA 4.0**, but CC BY, CC BY-SA, CC0 and Public Domain dedications also occur. Xeno-canto requires that recordings are credited.
+
+**Key Terms (per the applicable CC license):**
+- ✅ Free to share and play with attribution
+- ✅ No API cost (key is free)
+- ⚠️ Attribution required — recordist + license per played clip
+- ⚠️ Share-Alike / NonCommercial restrictions apply if audio were redistributed (we only stream + play clips)
+
+### Our Compliance
+
+**Attribution (displayed in the app):**
+While a card's clip is the active one (playing or paused), the card shows a credit line linked to the recording page, which lists the full recordist and license details (satisfying CC attribution requirements):
+
+```
+© {Recordist} · {License, e.g. CC BY-NC-SA 4.0} · via Xeno-canto
+```
+
+- The site footer credits "Bird sounds from Xeno-canto" whenever the app renders
+- Lookups are cached server-side (in-memory species → recording map) and batched/concurrency-capped (max 4 concurrent upstream requests), so at most one query per species per server lifetime
+- Requests carry an identifying `User-Agent` (`BirdingDiscovery/...`)
+- Audio files are proxied through `/api/bird-sound/stream` with Range support; no derivative audio is stored
+
+**License URL:** https://creativecommons.org/licenses/ (per-recording license URL is returned by the API and linked from the credit)
+
+---
+
 ## 🎯 Current Attribution Display
 
 ### In App Footer (Currently Displayed)
 ```
 Bird observations provided by eBird — Cornell Lab of Ornithology   (when live eBird data is shown)
-Location data © OpenStreetMap contributors · Powered by Geoapify (when Geoapify served the data) · Geocoding by Nominatim · Bird images from Wikimedia Commons
+Location data © OpenStreetMap contributors · Powered by Geoapify (when Geoapify served the data) · Geocoding by Nominatim · Bird images from Wikimedia Commons · Bird sounds from Xeno-canto
 ```
 
 ### In the Results List (Currently Displayed)
@@ -269,6 +312,12 @@ Powered by eBird   (linked badge on live bird results)
 ```
 Each credit links to the image's file page on Wikimedia Commons, where the full author and license details are listed (satisfying CC BY / CC BY-SA attribution requirements). Photos served from the mock data's Unsplash URLs are credited "Photo via Unsplash".
 
+While a bird's audio clip is playing (or paused mid-playback), the card additionally shows:
+```
+© {Recordist} · {License, e.g. CC BY-NC-SA 4.0} · via Xeno-canto
+```
+linked to the recording's page on xeno-canto.org.
+
 ---
 
 ## ✅ Compliance Checklist
@@ -281,6 +330,7 @@ Each credit links to the image's file page on Wikimedia Commons, where the full 
 - [x] eBird - "Powered by eBird" badge + footer credit shown whenever live data is displayed
 - [x] Wikimedia Commons - Per-image author + license credit displayed on each bird card, linked to the Commons file page
 - [x] Unsplash - Mock-data photos credited "Photo via Unsplash"
+- [x] Xeno-canto - Per-recording recordist + license credit shown on the card while its clip is active, linked to the recording page; footer credits Xeno-canto; lookups cached and concurrency-capped with identifying User-Agent; audio streamed via our own proxy
 - [x] No rate limit violations
 - [x] Not creating derivative databases
 
@@ -313,6 +363,7 @@ Each credit links to the image's file page on Wikimedia Commons, where the full 
 - **ODbL 1.0:** https://opendatacommons.org/licenses/odbl/1.0/
 - **Unsplash License:** https://unsplash.com/license
 - **eBird Terms:** https://www.birds.cornell.edu/home/ebird-terms-of-use/
+- **CC licenses (per Xeno-canto recording):** https://creativecommons.org/licenses/
 
 ---
 
@@ -322,6 +373,7 @@ Each credit links to the image's file page on Wikimedia Commons, where the full 
 **OpenStreetMap:** https://wiki.openstreetmap.org/wiki/Contact
 **Unsplash Support:** https://help.unsplash.com/
 **eBird Support:** ebird@cornell.edu
+**Xeno-canto Support:** https://xeno-canto.org/contact (API: contact@xeno-canto.org)
 
 ---
 

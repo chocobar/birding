@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import BirdCard from './BirdCard';
 import TimeRangeFilter from './TimeRangeFilter';
 import { Bird, ChevronDown } from 'lucide-react';
+import { BirdSoundInfo } from '@/lib/api/xenoCantoLookup';
 import { getTimeRange, TimeRangeId } from '@/lib/types/TimeRange';
 
 interface BirdData {
@@ -37,8 +38,8 @@ interface BirdListProps {
 /** How many birds to show per page */
 const PAGE_SIZE = 6;
 
-/** /api/bird-images accepts at most 20 birds per request */
-const IMAGE_BATCH_SIZE = 20;
+/** /api/bird-images and /api/bird-sounds accept at most 20 birds per request */
+const BATCH_SIZE = 20;
 
 function SkeletonCard() {
   return (
@@ -66,7 +67,7 @@ function uniqueSpecies(birds: BirdData[]): BirdData[] {
 
 /**
  * Fetch image URLs for a list of birds, batching into requests of at most
- * IMAGE_BATCH_SIZE entries.
+ * BATCH_SIZE entries.
  */
 async function fetchBirdImages(
   birds: BirdData[]
@@ -74,8 +75,8 @@ async function fetchBirdImages(
   if (birds.length === 0) return {};
 
   const batches: BirdData[][] = [];
-  for (let i = 0; i < birds.length; i += IMAGE_BATCH_SIZE) {
-    batches.push(birds.slice(i, i + IMAGE_BATCH_SIZE));
+  for (let i = 0; i < birds.length; i += BATCH_SIZE) {
+    batches.push(birds.slice(i, i + BATCH_SIZE));
   }
 
   const emptyResult: BirdImageInfo = {
@@ -116,6 +117,47 @@ async function fetchBirdImages(
   return map;
 }
 
+/**
+ * Fetch sound recordings for a list of scientific names, batching into
+ * requests of at most BATCH_SIZE entries. Keyed by scientific name.
+ * Best effort: any failure yields an empty map (cards simply show no
+ * play button).
+ */
+async function fetchBirdSounds(
+  names: string[]
+): Promise<Record<string, BirdSoundInfo>> {
+  if (names.length === 0) return {};
+
+  const batches: string[][] = [];
+  for (let i = 0; i < names.length; i += BATCH_SIZE) {
+    batches.push(names.slice(i, i + BATCH_SIZE));
+  }
+
+  const settled = await Promise.allSettled(
+    batches.map(async (batch) => {
+      const res = await fetch('/api/bird-sounds', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          birds: batch.map((scientificName) => ({ scientificName })),
+        }),
+      });
+
+      if (!res.ok) return {};
+      const data: { sounds?: Record<string, BirdSoundInfo> } = await res.json();
+      return data.sounds ?? {};
+    })
+  );
+
+  const map: Record<string, BirdSoundInfo> = {};
+  for (const result of settled) {
+    if (result.status === 'fulfilled') {
+      Object.assign(map, result.value);
+    }
+  }
+  return map;
+}
+
 export default function BirdList({
   birds,
   isLoading = false,
@@ -126,8 +168,17 @@ export default function BirdList({
   isUpdating = false,
 }: BirdListProps) {
   const [imageMap, setImageMap] = useState<Record<string, BirdImageInfo>>({});
+  const [soundMap, setSoundMap] = useState<Record<string, BirdSoundInfo>>({});
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [prevBirds, setPrevBirds] = useState(birds);
+
+  // Playback lives here so only one card's clip can ever play at a time:
+  // a single shared <audio> element is retargeted whenever another card
+  // plays, which stops the previous clip automatically.
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [activeRecordingId, setActiveRecordingId] = useState<string | null>(null);
+  const [isSoundPlaying, setIsSoundPlaying] = useState(false);
+  const [isSoundLoading, setIsSoundLoading] = useState(false);
 
   if (prevBirds !== birds) {
     setPrevBirds(birds);
@@ -161,6 +212,95 @@ export default function BirdList({
       cancelled = true;
     };
   }, [visibleBirds, imageMap]);
+
+  // Batch-fetch recordings for the species currently on screen. The server
+  // caches species → recording lookups, so paging ("Show more") only
+  // queries the newly revealed species.
+  useEffect(() => {
+    if (!visibleBirds || visibleBirds.length === 0) return;
+
+    const missing = uniqueSpecies(visibleBirds)
+      .map((b) => b.scientificName?.trim())
+      .filter((name): name is string => Boolean(name))
+      .filter((name) => !(name in soundMap));
+    if (missing.length === 0) return;
+
+    let cancelled = false;
+
+    fetchBirdSounds(missing).then((map) => {
+      if (!cancelled && Object.keys(map).length > 0) {
+        setSoundMap((prev) => ({ ...prev, ...map }));
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [visibleBirds, soundMap]);
+
+  /** Stop the current clip and reset playback state (no-op when idle). */
+  const stopPlayback = useCallback(() => {
+    const audio = audioRef.current;
+    if (audio) {
+      audio.pause();
+      audio.removeAttribute('src');
+      audio.load();
+    }
+    setActiveRecordingId(null);
+    setIsSoundPlaying(false);
+    setIsSoundLoading(false);
+  }, []);
+
+  // Stop playback when a new search (or time-range swap) changes the list,
+  // and never leave audio running after the list unmounts.
+  useEffect(() => {
+    return () => {
+      stopPlayback();
+    };
+  }, [birds, stopPlayback]);
+
+  const ensureAudioElement = (): HTMLAudioElement => {
+    if (!audioRef.current) {
+      const audio = new Audio();
+      audio.preload = 'auto';
+      audio.addEventListener('playing', () => {
+        setIsSoundPlaying(true);
+        setIsSoundLoading(false);
+      });
+      audio.addEventListener('pause', () => setIsSoundPlaying(false));
+      audio.addEventListener('ended', () => stopPlayback());
+      audio.addEventListener('error', () => stopPlayback());
+      audioRef.current = audio;
+    }
+    return audioRef.current;
+  };
+
+  const toggleSoundPlayback = (sound: BirdSoundInfo) => {
+    if (!sound.audioUrl || !sound.recordingId) return;
+
+    const audio = ensureAudioElement();
+
+    // Same clip: pause/resume in place, keeping it "active" so the
+    // attribution stays visible.
+    if (activeRecordingId === sound.recordingId) {
+      if (audio.paused) {
+        setIsSoundLoading(true);
+        audio.play().catch(() => stopPlayback());
+      } else {
+        audio.pause();
+        setIsSoundPlaying(false);
+      }
+      return;
+    }
+
+    // Different clip: retarget the shared element, which stops the previous one.
+    audio.pause();
+    setActiveRecordingId(sound.recordingId);
+    setIsSoundPlaying(false);
+    setIsSoundLoading(true);
+    audio.src = sound.audioUrl;
+    audio.play().catch(() => stopPlayback());
+  };
 
   if (isLoading) {
     return (
@@ -248,20 +388,29 @@ export default function BirdList({
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {visibleBirds.map((bird, index) => (
-          <div
-            key={bird.id}
-            className={index >= PAGE_SIZE ? 'animate-fade-in-up' : ''}
-          >
-            <BirdCard
-              bird={bird}
-              resolvedImageUrl={imageMap[bird.commonName]?.imageUrl ?? undefined}
-              imageAttribution={imageMap[bird.commonName]?.attribution ?? undefined}
-              imageAttributionUrl={imageMap[bird.commonName]?.attributionUrl ?? undefined}
-              isLiveData={isLiveData}
-            />
-          </div>
-        ))}
+        {visibleBirds.map((bird, index) => {
+          const sound = soundMap[bird.scientificName];
+          const soundKey = sound?.recordingId ?? null;
+          return (
+            <div
+              key={bird.id}
+              className={index >= PAGE_SIZE ? 'animate-fade-in-up' : ''}
+            >
+              <BirdCard
+                bird={bird}
+                resolvedImageUrl={imageMap[bird.commonName]?.imageUrl ?? undefined}
+                imageAttribution={imageMap[bird.commonName]?.attribution ?? undefined}
+                imageAttributionUrl={imageMap[bird.commonName]?.attributionUrl ?? undefined}
+                isLiveData={isLiveData}
+                sound={sound}
+                isSoundActive={soundKey !== null && activeRecordingId === soundKey}
+                isSoundPlaying={soundKey !== null && isSoundPlaying && activeRecordingId === soundKey}
+                isSoundLoading={soundKey !== null && isSoundLoading && activeRecordingId === soundKey}
+                onToggleSound={toggleSoundPlayback}
+              />
+            </div>
+          );
+        })}
       </div>
 
       {hasMore && (

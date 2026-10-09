@@ -180,11 +180,20 @@ draw on the archive and grow richer as the site is used; until enough history
 has accumulated, the list notes that it doesn't yet reach the start of the
 requested window.
 
-The archive is a JSON file written to `.data/sightings-archive.json` next to
-the app, falling back to the OS temp directory on read-only filesystems (e.g.
-serverless hosting, where it is best-effort per instance). Set
-`SIGHTINGS_ARCHIVE_PATH` to pin a custom location. Records older than 180
-days are pruned automatically.
+The archive survives deployments when stored in [Vercel Blob](https://vercel.com/docs/storage/vercel-blob):
+
+1. In the Vercel project, go to the **Storage** tab and create/connect a Blob store
+2. Vercel injects `BLOB_READ_WRITE_TOKEN`; the app then uses the blob backend automatically
+
+Otherwise it falls back to a JSON file at `.data/sightings-archive.json` next
+to the app (then to the OS temp directory on read-only filesystems). Note the
+file backend does **not** survive serverless redeploys — it suits self-hosted
+Node servers. Records older than 180 days are pruned automatically.
+
+| Env var | Purpose |
+| --- | --- |
+| `SIGHTINGS_ARCHIVE_BACKEND` | Force `vercel-blob` or `file` (default: blob when `BLOB_READ_WRITE_TOKEN` is set, otherwise file) |
+| `SIGHTINGS_ARCHIVE_PATH` | Custom file location for the `file` backend |
 
 ### Geoapify Setup
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { MapPin, Trees, Waves, Leaf, Footprints, Map, Route, ExternalLink } from 'lucide-react';
+import { MapPin, Trees, Waves, Leaf, Footprints, Map, ExternalLink } from 'lucide-react';
 import { formatDistance } from '@/lib/utils/distanceCalculator';
 import dynamic from 'next/dynamic';
 import { useMapOpen } from './MapOpenContext';
@@ -12,7 +12,7 @@ interface LocationCardProps {
   location: {
     id: string;
     name: string;
-    type: 'water' | 'woodland' | 'park' | 'nature_reserve' | 'trail' | 'route';
+    type: 'water' | 'woodland' | 'park' | 'nature_reserve' | 'trail' | 'path';
     distance: number;
     latitude: number;
     longitude: number;
@@ -32,7 +32,7 @@ const locationIcons = {
   park: Leaf,
   nature_reserve: Leaf,
   trail: Footprints,
-  route: Route,
+  path: Footprints,
 };
 
 const locationColors = {
@@ -41,7 +41,7 @@ const locationColors = {
   park: 'bg-green-50 text-green-700 border border-green-200 dark:bg-green-950/70 dark:text-green-200 dark:border-green-800',
   nature_reserve: 'bg-teal-50 text-teal-700 border border-teal-200 dark:bg-teal-950/70 dark:text-teal-200 dark:border-teal-800',
   trail: 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/70 dark:text-amber-200 dark:border-amber-800',
-  route: 'bg-violet-50 text-violet-700 border border-violet-200 dark:bg-violet-950/70 dark:text-violet-200 dark:border-violet-800',
+  path: 'bg-stone-50 text-stone-600 border border-stone-200 dark:bg-stone-900/70 dark:text-stone-200 dark:border-stone-700',
 };
 
 const iconContainerColors = {
@@ -50,7 +50,7 @@ const iconContainerColors = {
   park: 'bg-green-100 text-green-600 dark:bg-green-950 dark:text-green-300',
   nature_reserve: 'bg-teal-100 text-teal-600 dark:bg-teal-950 dark:text-teal-300',
   trail: 'bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-300',
-  route: 'bg-violet-100 text-violet-600 dark:bg-violet-950 dark:text-violet-300',
+  path: 'bg-stone-100 text-stone-500 dark:bg-stone-900 dark:text-stone-300',
 };
 
 const locationTypeLabels = {
@@ -59,7 +59,7 @@ const locationTypeLabels = {
   park: 'Park',
   nature_reserve: 'Nature Reserve',
   trail: 'Trail',
-  route: 'Route',
+  path: 'Path',
 };
 
 const networkLabels = {
@@ -154,13 +154,13 @@ export default function LocationCard({ location }: LocationCardProps) {
                   onClick={() => openMap(mapKey)}
                   className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[var(--brand-green)] bg-[var(--brand-green)]/5 border border-[var(--brand-green)]/20 rounded-full hover:bg-[var(--brand-green)] hover:text-white hover:border-[var(--brand-green)] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--brand-green)] focus:ring-offset-1"
                   aria-label={
-                    location.type === 'route'
+                    location.type === 'trail'
                       ? `View route for ${location.name}`
                       : `View ${location.name} on map`
                   }
                 >
                   <Map className="w-3.5 h-3.5" />
-                  {location.type === 'route' ? 'View route' : 'View on map'}
+                  {location.type === 'trail' ? 'View route' : 'View on map'}
                 </button>
               </div>
             </div>
@@ -176,9 +176,9 @@ export default function LocationCard({ location }: LocationCardProps) {
           latitude={location.latitude}
           longitude={location.longitude}
           osmRelationId={location.osmRelationId}
-          // Way geometry is a trail concern: other way-mapped features keep
+          // Way geometry is a path concern: other way-mapped features keep
           // their centre pin
-          osmWayId={location.type === 'trail' ? location.osmWayId : undefined}
+          osmWayId={location.type === 'path' ? location.osmWayId : undefined}
           website={location.website}
           onRouteLength={setLengthKm}
           onClose={closeMap}

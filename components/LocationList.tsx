@@ -7,16 +7,16 @@ import { Location, LocationDataSource } from '@/lib/types';
 
 const PAGE_SIZE = 5;
 
-type FilterKey = 'all' | 'route' | 'park' | 'water' | 'woodland' | 'nature_reserve' | 'trail';
+type FilterKey = 'all' | 'trail' | 'park' | 'water' | 'woodland' | 'nature_reserve' | 'path';
 
 const FILTERS: Array<{ key: FilterKey; label: string }> = [
   { key: 'all', label: 'All' },
-  { key: 'route', label: 'Routes' },
+  { key: 'trail', label: 'Trails' },
   { key: 'park', label: 'Parks' },
   { key: 'water', label: 'Water' },
   { key: 'woodland', label: 'Woodland' },
   { key: 'nature_reserve', label: 'Reserves' },
-  { key: 'trail', label: 'Trails' },
+  { key: 'path', label: 'Paths' },
 ];
 
 interface LocationListProps {

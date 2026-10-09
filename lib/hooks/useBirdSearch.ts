@@ -2,6 +2,7 @@
 
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { getBirdsForLocation, BirdResult } from '@/lib/api/birdClient';
+import { getNotableSightings, NotableResult } from '@/lib/api/notableClient';
 import { getNearbyLocations, getOsmLineGeometry, NearbyLocationsResult } from '@/lib/api/locationClient';
 
 /**
@@ -36,6 +37,21 @@ export function useLocationSearch(latitude: number | null, longitude: number | n
     queryFn: () => getNearbyLocations(latitude!, longitude!),
     enabled: latitude !== null && longitude !== null,
     retry: 0,
+  });
+}
+
+/**
+ * Fetch recent notable (rare/unusual) sightings for a geodedic position.
+ * Cached by lat/lng. Best-effort: failures resolve to an empty list so the
+ * strip can be hidden without surfacing an error.
+ */
+export function useNotableSightings(latitude: number | null, longitude: number | null) {
+  return useQuery<NotableResult>({
+    queryKey: ['notable-sightings', latitude, longitude],
+    queryFn: () => getNotableSightings(latitude!, longitude!),
+    enabled: latitude !== null && longitude !== null,
+    retry: 0,
+    staleTime: 1000 * 60 * 15,
   });
 }
 

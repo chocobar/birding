@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
-import { Bird, ExternalLink } from 'lucide-react';
+import { Bird, ExternalLink, Pause, Play, LoaderCircle } from 'lucide-react';
 import { useMapOpen } from './MapOpenContext';
+import { BirdSoundInfo } from '@/lib/api/xenoCantoLookup';
 
 const MapModal = dynamic(() => import('./MapModal'), { ssr: false });
 
@@ -26,6 +27,13 @@ interface BirdCardProps {
   imageAttribution?: string | null;
   imageAttributionUrl?: string | null;
   isLiveData?: boolean;
+  /** Recording for this species; absent/null when nothing was found */
+  sound?: BirdSoundInfo | null;
+  /** True while this card's clip is the active one (playing or paused) */
+  isSoundActive?: boolean;
+  isSoundPlaying?: boolean;
+  isSoundLoading?: boolean;
+  onToggleSound?: (sound: BirdSoundInfo) => void;
 }
 
 export default function BirdCard({
@@ -34,6 +42,11 @@ export default function BirdCard({
   imageAttribution,
   imageAttributionUrl,
   isLiveData,
+  sound,
+  isSoundActive = false,
+  isSoundPlaying = false,
+  isSoundLoading = false,
+  onToggleSound,
 }: BirdCardProps) {
   // Use externally-resolved image URL (from batch fetch), fall back to bird.imageUrl
   const displayImageUrl = externalImageUrl ?? bird.imageUrl ?? null;
@@ -65,6 +78,8 @@ export default function BirdCard({
   };
 
   const showPlaceholder = !displayImageUrl || imageError;
+
+  const canPlaySound = Boolean(sound?.audioUrl && sound?.recordingId && onToggleSound);
 
   // CC BY / CC BY-SA images require author + license credit; the batch fetch
   // resolves both from the Commons file metadata. Photos served straight from
@@ -189,17 +204,69 @@ export default function BirdCard({
           </div>
         )}
 
-        {/* Learn more link */}
-        <a
-          href={learnMoreUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label={`Learn more about ${bird.commonName} on ${sourceName}`}
-          className="mt-3 inline-flex items-center gap-1.5 text-sm text-[var(--brand-green)] hover:underline focus:outline-none focus:ring-2 focus:ring-[var(--brand-green)] focus:ring-offset-2 rounded"
-        >
-          Learn more on {sourceName}
-          <ExternalLink className="w-3.5 h-3.5" />
-        </a>
+        {/* Play sound + learn more link */}
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+          {canPlaySound && (
+            <button
+              type="button"
+              onClick={() => onToggleSound?.(sound!)}
+              aria-label={`${isSoundPlaying ? 'Pause' : 'Play'} ${bird.commonName} audio`}
+              title={
+                isSoundPlaying
+                  ? `Pause ${bird.commonName} audio`
+                  : `Play ${bird.commonName} audio`
+              }
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--brand-green)] focus:ring-offset-2 ${
+                isSoundPlaying
+                  ? 'bg-[var(--brand-green)] text-white border-[var(--brand-green)]'
+                  : 'bg-[var(--warm-sand)] text-[var(--brand-green)] border-[var(--border-light)] hover:bg-[var(--brand-green)] hover:text-white hover:border-[var(--brand-green)]'
+              }`}
+            >
+              {isSoundLoading ? (
+                <LoaderCircle className="w-4 h-4 animate-spin" aria-hidden="true" />
+              ) : isSoundPlaying ? (
+                <Pause className="w-4 h-4" aria-hidden="true" />
+              ) : (
+                <Play className="w-4 h-4" aria-hidden="true" />
+              )}
+              <span>{isSoundPlaying ? 'Pause' : 'Play'}</span>
+            </button>
+          )}
+          <a
+            href={learnMoreUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Learn more about ${bird.commonName} on ${sourceName}`}
+            className="inline-flex items-center gap-1.5 text-sm text-[var(--brand-green)] hover:underline focus:outline-none focus:ring-2 focus:ring-[var(--brand-green)] focus:ring-offset-2 rounded"
+          >
+            Learn more on {sourceName}
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+        </div>
+
+        {/* Xeno-canto requires crediting the recordist and license; the
+            credit shows while this card's clip is the active one. */}
+        {sound && isSoundActive && (
+          <p className="mt-2 text-xs text-[var(--text-secondary)] leading-snug">
+            {sound.pageUrl ? (
+              <a
+                href={sound.pageUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`Recording page: ${sound.pageUrl}`}
+                className="underline decoration-[var(--border-light)] hover:decoration-[var(--brand-green)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-green)] focus:ring-offset-2 rounded"
+              >
+                © {sound.recordist ?? 'Xeno-canto contributor'}
+                {sound.license ? ` · ${sound.license}` : ''} · via Xeno-canto
+              </a>
+            ) : (
+              <span>
+                © {sound.recordist ?? 'Xeno-canto contributor'}
+                {sound.license ? ` · ${sound.license}` : ''} · via Xeno-canto
+              </span>
+            )}
+          </p>
+        )}
       </div>
     </article>
     {isMapOpen && bird.latitude != null && bird.longitude != null && (

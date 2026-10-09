@@ -165,10 +165,10 @@ export async function GET(request: NextRequest) {
     const observations: SightingSource[] = await ebirdResponse.json();
 
     // Grow the archive before reading it so this response includes fresh data
-    await mergeIntoArchive(observations);
+    mergeIntoArchive(observations);
 
     const windowStart = Date.now() - windowDays * 24 * 60 * 60 * 1000;
-    const archived = await readArchivedSightings(lat, lng, RADIUS_KM, windowStart);
+    const archived = readArchivedSightings(lat, lng, RADIUS_KM, windowStart);
     const liveResponses = observations.map(toBirdResponse);
     const archivedResponses = archived.map(toBirdResponse);
     const birds = dedupeSightings([...liveResponses, ...archivedResponses])

@@ -1,5 +1,7 @@
 export interface Bird {
   id: string;
+  /** eBird species code — present on live data, used for eBird species links */
+  speciesCode?: string;
   commonName: string;
   scientificName: string;
   imageUrl?: string;

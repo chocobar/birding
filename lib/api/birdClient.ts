@@ -162,21 +162,29 @@ const UK_COMMON_BIRDS: Bird[] = [
 export interface BirdResult {
   birds: Bird[];
   isLiveData: boolean;
+  /** Length of the requested time window in days (live data only) */
+  windowDays?: number;
+  /** True when records don't reach the start of the requested window
+   * (eBird serves 30 days live; longer ranges fill from the archive) */
+  coverageLimited?: boolean;
 }
 
 /**
  * Fetch birds for a given location via the server-side proxy (/api/birds).
- * Falls back to mock data if the API is unavailable or returns no results.
+ * `backDays` selects the time window (30 = last month, 90 = last 3 months,
+ * 180 = last 6 months). Falls back to mock data if the API is unavailable
+ * or returns no results.
  */
 export async function getBirdsForLocation(
   latitude: number,
   longitude: number,
-  radiusMiles: number = 5
+  backDays: number = 30
 ): Promise<BirdResult> {
   try {
     const params = new URLSearchParams({
       lat: latitude.toString(),
       lng: longitude.toString(),
+      back: backDays.toString(),
     });
 
     const response = await fetch(`/api/birds?${params.toString()}`);
@@ -190,7 +198,12 @@ export async function getBirdsForLocation(
 
     // If the server returned live data with results, use it
     if (data.isLiveData && Array.isArray(data.birds) && data.birds.length > 0) {
-      return { birds: data.birds, isLiveData: true };
+      return {
+        birds: data.birds,
+        isLiveData: true,
+        windowDays: data.windowDays,
+        coverageLimited: data.coverageLimited,
+      };
     }
 
     // Server couldn't get live data (missing key, eBird error, etc.) — use mock

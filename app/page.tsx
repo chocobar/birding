@@ -7,6 +7,11 @@ import BirdList from '@/components/BirdList';
 import LocationList from '@/components/LocationList';
 import { useBirdSearch, useLocationSearch } from '@/lib/hooks/useBirdSearch';
 import { GeocodedLocation } from '@/lib/types';
+import {
+  DEFAULT_TIME_RANGE_ID,
+  getTimeRange,
+  TimeRangeId,
+} from '@/lib/types/TimeRange';
 import { Bird as BirdIcon, Binoculars, MapPin, Feather, Moon, Sun } from 'lucide-react';
 
 interface Coords {
@@ -17,8 +22,10 @@ interface Coords {
 export default function Home() {
   const [locationName, setLocationName] = useState('');
   const [coords, setCoords] = useState<Coords | null>(null);
+  const [timeRangeId, setTimeRangeId] = useState<TimeRangeId>(DEFAULT_TIME_RANGE_ID);
 
-  const birdQuery = useBirdSearch(coords?.latitude ?? null, coords?.longitude ?? null);
+  const timeRange = getTimeRange(timeRangeId);
+  const birdQuery = useBirdSearch(coords?.latitude ?? null, coords?.longitude ?? null, timeRange.days);
   const locationQuery = useLocationSearch(coords?.latitude ?? null, coords?.longitude ?? null);
 
   const handleSearch = (location: GeocodedLocation) => {
@@ -33,6 +40,7 @@ export default function Home() {
 
   const birds = birdQuery.data?.birds ?? [];
   const isLiveData = birdQuery.data?.isLiveData ?? false;
+  const coverageLimited = birdQuery.data?.coverageLimited ?? false;
   const locations = locationQuery.data?.locations ?? [];
   const dataSource = locationQuery.data?.source;
 
@@ -98,6 +106,10 @@ export default function Home() {
               birds={birds}
               isLoading={isLoadingBirds}
               isLiveData={isLiveData}
+              timeRangeId={timeRangeId}
+              onTimeRangeChange={setTimeRangeId}
+              coverageLimited={coverageLimited}
+              isUpdating={birdQuery.isFetching && !isLoadingBirds}
             />
 
             {/* Locations Section */}

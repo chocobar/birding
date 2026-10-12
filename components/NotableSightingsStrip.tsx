@@ -12,7 +12,6 @@ interface NotableSightingsStripProps {
   /** The searched location, used to compute per-sighting distance */
   latitude: number;
   longitude: number;
-  isLoading?: boolean;
 }
 
 interface BirdImageInfo {
@@ -94,34 +93,6 @@ async function fetchBirdImages(
   return map;
 }
 
-function SkeletonStrip() {
-  return (
-    <section className="w-full" aria-label="Loading rare sightings">
-      <div className="rounded-2xl border border-amber-200 dark:border-amber-900/60 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/20 p-5 sm:p-6">
-        <div className="mb-5 flex items-center gap-3">
-          <div className="h-9 w-9 rounded-xl bg-amber-200/70 dark:bg-amber-900/60 animate-pulse" />
-          <div className="h-6 w-64 rounded-lg bg-amber-200/70 dark:bg-amber-900/60 animate-pulse" />
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <div
-              key={index}
-              className="bg-white/80 dark:bg-[var(--warm-sand)] border border-amber-200/80 dark:border-amber-900/60 rounded-xl overflow-hidden animate-pulse"
-            >
-              <div className="w-full h-40 bg-amber-100/80 dark:bg-amber-950/40" />
-              <div className="p-3.5">
-                <div className="h-4 bg-amber-200/70 dark:bg-amber-900/60 rounded-lg w-3/4 mb-2" />
-                <div className="h-3 bg-amber-200/50 dark:bg-amber-900/40 rounded-lg w-1/2 mb-3" />
-                <div className="h-3 bg-amber-200/50 dark:bg-amber-900/40 rounded-lg w-2/3" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
 /**
  * Highlighted strip of recent rare/notable bird sightings reported near the
  * searched location, sourced from eBird's notable observations feed.
@@ -129,14 +100,14 @@ function SkeletonStrip() {
  * Deliberately eye-catching — rare sightings are the headline feature — with
  * photo previews resolved from Wikimedia Commons via /api/bird-images.
  *
- * Best-effort by design: renders nothing when there is no data, so an API
- * failure or missing key can never break the page.
+ * Best-effort by design: renders nothing when there is no data and shows no
+ * loading placeholder, so an API failure, missing key, or an area with no
+ * rare birds can never flash a skeleton or break the page.
  */
 export default function NotableSightingsStrip({
   sightings,
   latitude,
   longitude,
-  isLoading = false,
 }: NotableSightingsStripProps) {
   const [imageMap, setImageMap] = useState<Record<string, BirdImageInfo>>({});
 
@@ -167,11 +138,7 @@ export default function NotableSightingsStrip({
     };
   }, [sightings, imageMap]);
 
-  if (isLoading) {
-    return <SkeletonStrip />;
-  }
-
-  // Hide the strip entirely when the feed is empty or unavailable
+  // Hide the strip entirely when the feed is empty or still loading
   if (!sightings || sightings.length === 0) {
     return null;
   }
@@ -275,7 +242,16 @@ export default function NotableSightingsStrip({
                         {sighting.scientificName}
                       </span>
                     ) : null}
-                    {sighting.commonName}
+                    <a
+                      href={`https://ebird.org/species/${sighting.speciesCode}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`Learn more about ${sighting.commonName} on eBird`}
+                      title={`Learn more about ${sighting.commonName} on eBird`}
+                      className="hover:text-[var(--brand-green)] hover:underline focus:outline-none focus:ring-2 focus:ring-[var(--brand-green)] focus:ring-offset-2 rounded"
+                    >
+                      {sighting.commonName}
+                    </a>
                   </p>
                   <p
                     className="text-xs text-[var(--text-secondary)] flex items-center gap-1 min-w-0"

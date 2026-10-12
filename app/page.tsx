@@ -113,7 +113,6 @@ export default function Home() {
                 sightings={notableSightings}
                 latitude={coords.latitude}
                 longitude={coords.longitude}
-                isLoading={notableQuery.isLoading}
               />
             )}
 

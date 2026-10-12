@@ -10,6 +10,7 @@ export interface NotableResult {
 
 export interface NotableSighting {
   id: string;
+  speciesCode: string;
   commonName: string;
   scientificName?: string;
   locationName: string;

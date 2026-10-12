@@ -78,7 +78,7 @@ npm start
 2. View the list of common birds in your area, with images sourced from Wikipedia/Wikimedia Commons
 3. Explore nearby birding locations within a 5-mile radius
 4. Click on a location to open the interactive map and see it pinned
-5. Click **Learn more** on any bird card to open its species information
+5. Click a bird's name on any bird card to open its species information
 
 **Note:** The app supports any location that can be geocoded via OpenStreetMap — cities, regions, addresses, and postcodes worldwide.
 
@@ -114,7 +114,7 @@ birding/
 │   └── globals.css                # Global styles
 ├── components/
 │   ├── LocationSearch.tsx         # Location search with autocomplete
-│   ├── BirdCard.tsx               # Individual bird display with Learn more link
+│   ├── BirdCard.tsx               # Individual bird display with clickable name link
 │   ├── BirdList.tsx               # Bird grid with time filter and loading states
 │   ├── TimeRangeFilter.tsx        # Sightings time-window pill filter
 │   ├── LocationCard.tsx           # Individual location display

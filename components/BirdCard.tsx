@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
-import { Bird, ExternalLink, Pause, Play, LoaderCircle } from 'lucide-react';
+import { Bird, Pause, Play, LoaderCircle } from 'lucide-react';
 import { useMapOpen } from './MapOpenContext';
 import { BirdSoundInfo } from '@/lib/api/xenoCantoLookup';
 
@@ -152,8 +152,17 @@ export default function BirdCard({
 
       {/* Content */}
       <div className="p-4">
-        <h3 className="text-lg font-bold text-[var(--text-primary)] leading-tight mb-0.5">
-          {bird.commonName}
+        <h3 className="text-lg font-bold leading-tight mb-0.5">
+          <a
+            href={learnMoreUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Learn more about ${bird.commonName} on ${sourceName}`}
+            title={`Learn more about ${bird.commonName} on ${sourceName}`}
+            className="text-[var(--text-primary)] hover:text-[var(--brand-green)] hover:underline focus:outline-none focus:ring-2 focus:ring-[var(--brand-green)] focus:ring-offset-2 rounded"
+          >
+            {bird.commonName}
+          </a>
         </h3>
         <p className="text-sm text-[var(--text-secondary)] italic mb-2">
           {bird.scientificName}
@@ -207,9 +216,9 @@ export default function BirdCard({
           </div>
         )}
 
-        {/* Play sound + learn more link */}
-        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
-          {canPlaySound && (
+        {/* Play sound */}
+        {canPlaySound && (
+          <div className="mt-3">
             <button
               type="button"
               onClick={() => onToggleSound?.(sound!)}
@@ -234,18 +243,8 @@ export default function BirdCard({
               )}
               <span>{isSoundPlaying ? 'Pause' : 'Play'}</span>
             </button>
-          )}
-          <a
-            href={learnMoreUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={`Learn more about ${bird.commonName} on ${sourceName}`}
-            className="inline-flex items-center gap-1.5 text-sm text-[var(--brand-green)] hover:underline focus:outline-none focus:ring-2 focus:ring-[var(--brand-green)] focus:ring-offset-2 rounded"
-          >
-            Learn more on {sourceName}
-            <ExternalLink className="w-3.5 h-3.5" />
-          </a>
-        </div>
+          </div>
+        )}
 
         {/* Xeno-canto requires crediting the recordist and license; the
             credit shows while this card's clip is the active one. */}

@@ -18,6 +18,7 @@ interface EBirdNotableObservation {
 
 interface NotableSightingResponse {
   id: string;
+  speciesCode: string;
   commonName: string;
   scientificName: string;
   locationName: string;
@@ -125,6 +126,7 @@ export async function GET(request: NextRequest) {
       .map((obs) => ({
         // subId identifies the checklist, so combine with speciesCode for uniqueness
         id: `${obs.speciesCode}-${obs.subId || obs.obsDt}`,
+        speciesCode: obs.speciesCode,
         commonName: obs.comName,
         scientificName: obs.sciName,
         locationName: obs.locName,

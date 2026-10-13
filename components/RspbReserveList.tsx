@@ -24,15 +24,9 @@ export default function RspbReserveList({ reserves, locationName }: RspbReserveL
           <Bird className="w-5 h-5 text-teal-700 dark:text-teal-300" aria-hidden="true" />
         </div>
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">
-              RSPB reserves near you
-            </h2>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide rounded-full bg-teal-400 text-teal-950 dark:bg-teal-500 dark:text-teal-950 shadow-sm">
-              <span className="w-1.5 h-1.5 rounded-full bg-teal-950/80" aria-hidden="true" />
-              UK reserves
-            </span>
-          </div>
+          <h2 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">
+            RSPB reserves near you
+          </h2>
           <p className="text-[var(--text-secondary)] mt-1">
             {reserves.length} nearest RSPB reserve{reserves.length !== 1 ? 's' : ''}
             {locationName && ` to ${locationName}`}

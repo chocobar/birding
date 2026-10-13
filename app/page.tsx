@@ -9,7 +9,6 @@ import NotableSightingsStrip from '@/components/NotableSightingsStrip';
 import RspbReserveList from '@/components/RspbReserveList';
 import { useBirdSearch, useLocationSearch, useNotableSightings, useRspbReserves } from '@/lib/hooks/useBirdSearch';
 import { GeocodedLocation } from '@/lib/types';
-import { hasNorthernIrelandReserves } from '@/lib/api/rspbClient';
 import {
   DEFAULT_TIME_RANGE_ID,
   getTimeRange,
@@ -55,12 +54,9 @@ export default function Home() {
 
   const rspbReserves = rspbQuery.data ?? [];
 
-  // The RSPB credit appears only when reserve cards are rendered; reserves in
-  // Northern Ireland additionally require the OSNI licence variant.
+  // The RSPB portal link appears only when reserve cards are rendered.
   const showRspbSection = rspbReserves.length > 0;
   const showRspbCredit = showRspbSection;
-  const hasNiRspbReserves = showRspbCredit && hasNorthernIrelandReserves(rspbReserves);
-  const rspbCreditYear = new Date().getFullYear();
 
   const toggleTheme = () => {
     const isDark = document.documentElement.classList.toggle('dark');
@@ -236,16 +232,15 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
           {showRspbCredit && (
             <p className="text-center text-xs text-[var(--text-secondary)] mb-2">
-              Data reproduced with the permission of{' '}
-              <a href="https://www.rspb.org.uk" target="_blank" rel="noopener noreferrer" className="text-[var(--brand-green)] underline decoration-[var(--brand-green-light)] hover:decoration-[var(--brand-green)]">RSPB</a>
-              {'. '}
-              © Crown Copyright. Ordnance Survey licence number AC0000813580 ({rspbCreditYear})
-              {hasNiRspbReserves && (
-                <>
-                  {' · '}
-                  © Crown Copyright. Ordnance Survey of Northern Ireland licence number DO 6121 ({rspbCreditYear})
-                </>
-              )}
+              Reserve data from the{' '}
+              <a
+                href="https://opendata-rspb.opendata.arcgis.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[var(--brand-green)] underline decoration-[var(--brand-green-light)] hover:decoration-[var(--brand-green)]"
+              >
+                RSPB Open Data Portal
+              </a>
             </p>
           )}
           {hasEbirdData && (

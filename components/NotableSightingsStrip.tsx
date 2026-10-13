@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { calculateDistance } from '@/lib/utils/distanceCalculator';
 import { formatTimeAgo } from '@/lib/utils/relativeTime';
 import type { NotableSighting } from '@/lib/api/notableClient';
-import { Bird, Clock, MapPin, Sparkles } from 'lucide-react';
+import { Bird, Clock, MapPin, Binoculars } from 'lucide-react';
 
 interface NotableSightingsStripProps {
   sightings: NotableSighting[];
@@ -151,7 +151,7 @@ export default function NotableSightingsStrip({
       <div className="p-5 sm:p-6">
         <div className="flex flex-wrap items-center gap-3 mb-5">
           <div className="w-10 h-10 rounded-xl bg-amber-400/30 dark:bg-amber-500/20 border border-amber-400/60 dark:border-amber-500/40 flex items-center justify-center flex-shrink-0">
-            <Sparkles className="w-5 h-5 text-amber-600 dark:text-amber-400" aria-hidden="true" />
+            <Binoculars className="w-5 h-5 text-amber-600 dark:text-amber-400" aria-hidden="true" />
           </div>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">

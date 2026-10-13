@@ -1,7 +1,7 @@
 'use client';
 
 import RspbReserveCard from './RspbReserveCard';
-import { Bird } from 'lucide-react';
+import { Birdhouse } from 'lucide-react';
 import type { RspbReserve } from '@/lib/api/rspbClient';
 
 interface RspbReserveListProps {
@@ -20,8 +20,8 @@ export default function RspbReserveList({ reserves, locationName }: RspbReserveL
   return (
     <section className="w-full" aria-label="RSPB reserves near you">
       <div className="flex flex-wrap items-center gap-3 mb-8">
-        <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-teal-400/30 dark:bg-teal-500/20 border border-teal-400/60 dark:border-teal-500/40 flex items-center justify-center">
-          <Bird className="w-5 h-5 text-teal-700 dark:text-teal-300" aria-hidden="true" />
+        <div className="flex-shrink-0 w-11 h-11 rounded-full bg-gradient-to-br from-teal-500 to-teal-700 dark:from-teal-600 dark:to-teal-800 border-2 border-white/60 dark:border-white/25 shadow-md shadow-teal-800/30 flex items-center justify-center">
+          <Birdhouse className="w-6 h-6 text-white" aria-hidden="true" />
         </div>
         <div className="min-w-0">
           <h2 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">

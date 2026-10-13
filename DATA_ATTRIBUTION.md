@@ -310,11 +310,11 @@ Source dataset: https://opendata-rspb.opendata.arcgis.com (item `6076715cb76d4c3
 
 **Key Terms:**
 - ✅ Free to use for **NON-COMMERCIAL purposes only**
-- ✅ **Attribution required** (exact credit line, see below)
+- ✅ **Attribution required** (the agreement prescribes the credit line below)
 - ⚠️ **Publishing the data in publicly available internet mapping services requires prior written permission** from the RSPB Conservation Data Management Unit
 - 📧 Permission requests: dataunit@rspb.org.uk
 
-**Required credit line:**
+**Credit line prescribed by the agreement (for reference):**
 ```
 Data reproduced with the permission of RSPB. © Crown Copyright. Ordnance Survey licence number AC0000813580 (year)
 ```
@@ -324,9 +324,9 @@ Data reproduced with the permission of RSPB. © Crown Copyright. Ordnance Survey
 
 **Attribution (displayed in the app footer):**
 ```
-Data reproduced with the permission of RSPB. © Crown Copyright. Ordnance Survey licence number AC0000813580 (2026)
+Reserve data from the RSPB Open Data Portal   (linked to https://opendata-rspb.opendata.arcgis.com/)
 ```
-The credit is shown **only when reserves are rendered** (i.e. the section has cards to show); when a rendered reserve lies in Northern Ireland the OSNI DO 6121 variant is appended.
+The footer shows this link **only when reserve cards are rendered**. We have not sought or obtained formal permission from the RSPB, so instead of reproducing the full Crown Copyright / Ordnance Survey line we simply link to the portal the data comes from. **If the RSPB requests formal credit, restore the prescribed line above** (plus the OSNI variant for Northern Ireland reserves) — it is documented here so the obligation isn't lost.
 
 **Boundary polygons are NOT published:**
 - We deliberately fetch only centroid points and render reserve cards — we do **not** draw the boundary polygons on the Leaflet map
@@ -348,7 +348,7 @@ The credit is shown **only when reserves are rendered** (i.e. the section has ca
 ### In App Footer (Currently Displayed)
 ```
 Bird observations provided by eBird — Cornell Lab of Ornithology   (when live eBird data is shown)
-Data reproduced with the permission of RSPB. © Crown Copyright. Ordnance Survey licence number AC0000813580 (year)   (when RSPB reserves are rendered; + OSNI DO 6121 variant when a rendered reserve is in Northern Ireland)
+Reserve data from the RSPB Open Data Portal   (when RSPB reserves are rendered; links to the portal)
 Location data © OpenStreetMap contributors · Powered by Geoapify (when Geoapify served the data) · Geocoding by Nominatim · Bird images from Wikimedia Commons · Bird sounds from Xeno-canto
 ```
 
@@ -383,7 +383,7 @@ linked to the recording's page on xeno-canto.org.
 - [x] Wikimedia Commons - Per-image author + license credit displayed on each bird card, linked to the Commons file page
 - [x] Unsplash - Mock-data photos credited "Photo via Unsplash"
 - [x] Xeno-canto - Per-recording recordist + license credit shown on the card while its clip is active, linked to the recording page; footer credits Xeno-canto; lookups cached and concurrency-capped with identifying User-Agent; audio streamed via our own proxy
-- [x] RSPB - Prescribed credit line shown in the footer whenever reserve cards are rendered (+ OSNI variant for Northern Ireland reserves); non-commercial use only; boundary polygons not drawn on the map (cards only, pending written permission from the RSPB Conservation Data Unit); SENSITIVE sites excluded server-side; snapshot cached and refreshed at most every 30 days
+- [x] RSPB - Footer links to the RSPB Open Data Portal whenever reserve cards are rendered (the agreement's prescribed Crown Copyright credit line is documented above and can be restored if the RSPB requests formal credit); non-commercial use only; boundary polygons not drawn on the map (cards only, pending written permission from the RSPB Conservation Data Unit); SENSITIVE sites excluded server-side; snapshot cached and refreshed at most every 30 days
 - [x] No rate limit violations
 - [x] Not creating derivative databases
 

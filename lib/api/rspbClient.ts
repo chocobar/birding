@@ -41,26 +41,3 @@ export async function getRspbReserves(latitude: number, longitude: number): Prom
     return [];
   }
 }
-
-/**
- * Northern Ireland's reserves fall under the NI mapping-data variant of the
- * RSPB licence, so the footer credit gains an OSNI line when a rendered
- * reserve lies within Northern Ireland. Scotland shares the longitudes, so
- * the box is capped at NI's northern tip (Rathlin, NI's northernmost point,
- * sits at 55.3; the western Scottish islands rendered from this dataset all
- * sit above 55.6). Credit-display heuristic only — not a data filter.
- */
-const NI_BOUNDS = { minLat: 53.9, maxLat: 55.45, minLng: -8.3, maxLng: -5.35 };
-
-function isInNorthernIreland(latitude: number, longitude: number): boolean {
-  return (
-    latitude >= NI_BOUNDS.minLat &&
-    latitude <= NI_BOUNDS.maxLat &&
-    longitude >= NI_BOUNDS.minLng &&
-    longitude <= NI_BOUNDS.maxLng
-  );
-}
-
-export function hasNorthernIrelandReserves(reserves: RspbReserve[]): boolean {
-  return reserves.some((reserve) => isInNorthernIreland(reserve.latitude, reserve.longitude));
-}

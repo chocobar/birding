@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { getRspbReservesSnapshot } from '@/lib/server/rspbReserves';
+import { isInsideUk } from '@/lib/server/ukBoundary';
 import { calculateDistance } from '@/lib/utils/distanceCalculator';
 import { displayCaseReserveName, rspbReserveUrl } from '@/lib/utils/rspbReserveNames';
 
@@ -45,6 +46,14 @@ export async function GET(request: NextRequest) {
     : DEFAULT_RADIUS_MILES;
 
   try {
+    // The RSPB dataset covers the UK only: searches outside the UK (even
+    // foreign coastlines that fall inside the radius window) never see
+    // reserves. An empty list keeps this route's never-fail contract and the
+    // UI hides the section.
+    if (!isInsideUk(lat, lng)) {
+      return Response.json({ reserves: [], isLiveData: true });
+    }
+
     const snapshot = await getRspbReservesSnapshot();
 
     const reserves = snapshot.reserves

@@ -337,6 +337,8 @@ The credit is shown **only when reserves are rendered** (i.e. the section has ca
 
 **Sensitive sites:** rows with `Sensitive='SENSITIVE'` are filtered out server-side and never reach the client, matching the RSPB's own withholding of those sites' details.
 
+**UK-only serving:** `/api/rspb-reserves` only serves reserves for search locations inside the United Kingdom (tested against Natural Earth's 10m admin-0 UK boundary, embedded in `lib/server/data/uk-boundary.json`; Natural Earth data is public domain). Nearby foreign searches — Dublin, Calais, Brussels — never see RSPB data even when they fall inside the radius window.
+
 **Caching:** the full (215-row-scale) dataset is snapshotted in SQLite server-side and refreshed at most every 30 days — a handful of upstream requests per month, well within reasonable open-data use.
 
 ---

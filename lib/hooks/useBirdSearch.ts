@@ -4,6 +4,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { getBirdsForLocation, BirdResult } from '@/lib/api/birdClient';
 import { getNotableSightings, NotableResult } from '@/lib/api/notableClient';
 import { getNearbyLocations, getOsmLineGeometry, NearbyLocationsResult } from '@/lib/api/locationClient';
+import { getRspbReserves, RspbReserve } from '@/lib/api/rspbClient';
 
 /**
  * Fetch birds for a geocoded location within a time window. Cached by
@@ -49,6 +50,21 @@ export function useNotableSightings(latitude: number | null, longitude: number |
   return useQuery<NotableResult>({
     queryKey: ['notable-sightings', latitude, longitude],
     queryFn: () => getNotableSightings(latitude!, longitude!),
+    enabled: latitude !== null && longitude !== null,
+    retry: 0,
+    staleTime: 1000 * 60 * 15,
+  });
+}
+
+/**
+ * Fetch RSPB reserves near a geocoded position. Cached by lat/lng.
+ * Best-effort: failures resolve to an empty list so the section is hidden
+ * without surfacing an error.
+ */
+export function useRspbReserves(latitude: number | null, longitude: number | null) {
+  return useQuery<RspbReserve[]>({
+    queryKey: ['rspb-reserves', latitude, longitude],
+    queryFn: () => getRspbReserves(latitude!, longitude!),
     enabled: latitude !== null && longitude !== null,
     retry: 0,
     staleTime: 1000 * 60 * 15,

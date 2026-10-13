@@ -13,6 +13,7 @@ This document details all external data sources used by Birding Discovery, their
 | Nominatim (OpenStreetMap) | Fallback geocoding (search + reverse) | ODbL 1.0 | ❌ No | ✅ Yes |
 | Unsplash | Bird photography | Unsplash License | ❌ No | ✅ Yes (per image) |
 | Xeno-canto | Bird song/call playback on bird cards | Per-recording CC license (varies) | ⚠️ Optional (free with account) | ✅ Yes (recordist + license, per clip) |
+| RSPB Public Reserves (ArcGIS open data) | 'RSPB reserves near you' section | RSPB Geographic Data End User Agreement (General) | ❌ No | ✅ Yes (prescribed credit line) |
 | Mock Bird Data | Bird species information | Original content | N/A | ❌ No |
 
 ---
@@ -292,11 +293,62 @@ While a card's clip is the active one (playing or paused), the card shows a cred
 
 ---
 
+## 7️⃣ RSPB (Reserves Open Data)
+
+### What We Use
+- The **RSPB Public Reserves** FeatureServer dataset — polygons of publicly accessible UK reserves, published by the RSPB on their official ArcGIS open data portal
+- Only per-reserve **centroids and attributes** (name, type, access, sensitivity, last update): served as cards (name, centroid distance, deep link) in the 'RSPB reserves near you' section
+- Reserves flagged `Sensitive='SENSITIVE'` are **excluded entirely** — the RSPB withholds those sites' details, and so do we
+
+### API Endpoint
+```
+https://services1.arcgis.com/h1C9f6qsGKmqXsVs/arcgis/rest/services/RSPB_Public_Reserves/FeatureServer/0/query
+```
+Source dataset: https://opendata-rspb.opendata.arcgis.com (item `6076715cb76d4c388fa38b87db7d9d24`)
+
+### License: RSPB Geographic Data End User Agreement (General)
+
+**Key Terms:**
+- ✅ Free to use for **NON-COMMERCIAL purposes only**
+- ✅ **Attribution required** (exact credit line, see below)
+- ⚠️ **Publishing the data in publicly available internet mapping services requires prior written permission** from the RSPB Conservation Data Management Unit
+- 📧 Permission requests: dataunit@rspb.org.uk
+
+**Required credit line:**
+```
+Data reproduced with the permission of RSPB. © Crown Copyright. Ordnance Survey licence number AC0000813580 (year)
+```
+(+ NI variant `© Crown Copyright. Ordnance Survey of Northern Ireland licence number DO 6121 (year)` where applicable)
+
+### Our Compliance
+
+**Attribution (displayed in the app footer):**
+```
+Data reproduced with the permission of RSPB. © Crown Copyright. Ordnance Survey licence number AC0000813580 (2026)
+```
+The credit is shown **only when reserves are rendered** (i.e. the section has cards to show); when a rendered reserve lies in Northern Ireland the OSNI DO 6121 variant is appended.
+
+**Boundary polygons are NOT published:**
+- We deliberately fetch only centroid points and render reserve cards — we do **not** draw the boundary polygons on the Leaflet map
+- Displaying the data in an internet mapping service (e.g. polygon overlays on our map) requires prior written permission from the RSPB Conservation Data Management Unit (`dataunit@rspb.org.uk`), which has not been sought; cards with names, centroid distances and links to rspb.org.uk stay within the general agreement
+- **If polygons are ever wanted**, obtain written permission from the CDMU first, then extend the fetch and map layers
+
+**Non-commercial use:** Birding Discovery is a free, non-commercial hobby project, satisfying the agreement's non-commercial restriction. Revisit this section before any monetization.
+
+**Sensitive sites:** rows with `Sensitive='SENSITIVE'` are filtered out server-side and never reach the client, matching the RSPB's own withholding of those sites' details.
+
+**UK-only serving:** `/api/rspb-reserves` only serves reserves for search locations inside the United Kingdom (tested against Natural Earth's 10m admin-0 UK boundary, embedded in `lib/server/data/uk-boundary.json`; Natural Earth data is public domain). Nearby foreign searches — Dublin, Calais, Brussels — never see RSPB data even when they fall inside the radius window.
+
+**Caching:** the full (215-row-scale) dataset is snapshotted in SQLite server-side and refreshed at most every 30 days — a handful of upstream requests per month, well within reasonable open-data use.
+
+---
+
 ## 🎯 Current Attribution Display
 
 ### In App Footer (Currently Displayed)
 ```
 Bird observations provided by eBird — Cornell Lab of Ornithology   (when live eBird data is shown)
+Data reproduced with the permission of RSPB. © Crown Copyright. Ordnance Survey licence number AC0000813580 (year)   (when RSPB reserves are rendered; + OSNI DO 6121 variant when a rendered reserve is in Northern Ireland)
 Location data © OpenStreetMap contributors · Powered by Geoapify (when Geoapify served the data) · Geocoding by Nominatim · Bird images from Wikimedia Commons · Bird sounds from Xeno-canto
 ```
 
@@ -331,6 +383,7 @@ linked to the recording's page on xeno-canto.org.
 - [x] Wikimedia Commons - Per-image author + license credit displayed on each bird card, linked to the Commons file page
 - [x] Unsplash - Mock-data photos credited "Photo via Unsplash"
 - [x] Xeno-canto - Per-recording recordist + license credit shown on the card while its clip is active, linked to the recording page; footer credits Xeno-canto; lookups cached and concurrency-capped with identifying User-Agent; audio streamed via our own proxy
+- [x] RSPB - Prescribed credit line shown in the footer whenever reserve cards are rendered (+ OSNI variant for Northern Ireland reserves); non-commercial use only; boundary polygons not drawn on the map (cards only, pending written permission from the RSPB Conservation Data Unit); SENSITIVE sites excluded server-side; snapshot cached and refreshed at most every 30 days
 - [x] No rate limit violations
 - [x] Not creating derivative databases
 
@@ -374,12 +427,13 @@ linked to the recording's page on xeno-canto.org.
 **Unsplash Support:** https://help.unsplash.com/
 **eBird Support:** ebird@cornell.edu
 **Xeno-canto Support:** https://xeno-canto.org/contact (API: contact@xeno-canto.org)
+**RSPB Conservation Data Management Unit (mapping-service permission):** dataunit@rspb.org.uk
 
 ---
 
 ## 🔄 Last Updated
 
-**Date:** October 9, 2026
+**Date:** October 13, 2026
 **Reviewed by:** Project maintainers
 **Next Review:** When adding new data sources or changing existing integrations
 

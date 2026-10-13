@@ -6,8 +6,10 @@ import LocationSearch from '@/components/LocationSearch';
 import BirdList from '@/components/BirdList';
 import LocationList from '@/components/LocationList';
 import NotableSightingsStrip from '@/components/NotableSightingsStrip';
-import { useBirdSearch, useLocationSearch, useNotableSightings } from '@/lib/hooks/useBirdSearch';
+import RspbReserveList from '@/components/RspbReserveList';
+import { useBirdSearch, useLocationSearch, useNotableSightings, useRspbReserves } from '@/lib/hooks/useBirdSearch';
 import { GeocodedLocation } from '@/lib/types';
+import { hasNorthernIrelandReserves } from '@/lib/api/rspbClient';
 import {
   DEFAULT_TIME_RANGE_ID,
   getTimeRange,
@@ -29,6 +31,7 @@ export default function Home() {
   const birdQuery = useBirdSearch(coords?.latitude ?? null, coords?.longitude ?? null, timeRange.days);
   const locationQuery = useLocationSearch(coords?.latitude ?? null, coords?.longitude ?? null);
   const notableQuery = useNotableSightings(coords?.latitude ?? null, coords?.longitude ?? null);
+  const rspbQuery = useRspbReserves(coords?.latitude ?? null, coords?.longitude ?? null);
 
   const handleSearch = (location: GeocodedLocation) => {
     setLocationName(location.displayName);
@@ -49,6 +52,15 @@ export default function Home() {
 
   // eBird deserves attribution whenever any of its data is shown
   const hasEbirdData = isLiveData || (notableQuery.data?.isLiveData ?? false);
+
+  const rspbReserves = rspbQuery.data ?? [];
+
+  // The RSPB credit appears only when reserve cards are rendered; reserves in
+  // Northern Ireland additionally require the OSNI licence variant.
+  const showRspbSection = rspbReserves.length > 0;
+  const showRspbCredit = showRspbSection;
+  const hasNiRspbReserves = showRspbCredit && hasNorthernIrelandReserves(rspbReserves);
+  const rspbCreditYear = new Date().getFullYear();
 
   const toggleTheme = () => {
     const isDark = document.documentElement.classList.toggle('dark');
@@ -127,16 +139,27 @@ export default function Home() {
               isUpdating={birdQuery.isFetching && !isLoadingBirds}
             />
 
-            {/* Locations Section */}
-            <LocationList
-              locations={locations}
-              isLoading={isLoadingLocations}
-              isError={locationQuery.isError}
-              isRetrying={locationQuery.isRefetching}
-              onRetry={() => locationQuery.refetch()}
-              postcode={locationName}
-              dataSource={dataSource}
-            />
+            {/* Locations + RSPB reserves: side by side on wide screens so
+                neither list monopolises the page; stacked on mobile and when
+                the RSPB section hides itself */}
+            <div
+              className={`grid gap-14 items-start ${
+                showRspbSection ? 'lg:grid-cols-2 lg:gap-10' : ''
+              }`}
+            >
+              <LocationList
+                locations={locations}
+                isLoading={isLoadingLocations}
+                isError={locationQuery.isError}
+                isRetrying={locationQuery.isRefetching}
+                onRetry={() => locationQuery.refetch()}
+                postcode={locationName}
+                dataSource={dataSource}
+              />
+
+              {/* RSPB Reserves Section (self-hiding when empty) */}
+              <RspbReserveList reserves={rspbReserves} locationName={locationName} />
+            </div>
           </div>
         )}
 
@@ -211,6 +234,20 @@ export default function Home() {
       {/* Footer */}
       <footer className="border-t border-[var(--border-light)] mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+          {showRspbCredit && (
+            <p className="text-center text-xs text-[var(--text-secondary)] mb-2">
+              Data reproduced with the permission of{' '}
+              <a href="https://www.rspb.org.uk" target="_blank" rel="noopener noreferrer" className="text-[var(--brand-green)] underline decoration-[var(--brand-green-light)] hover:decoration-[var(--brand-green)]">RSPB</a>
+              {'. '}
+              © Crown Copyright. Ordnance Survey licence number AC0000813580 ({rspbCreditYear})
+              {hasNiRspbReserves && (
+                <>
+                  {' · '}
+                  © Crown Copyright. Ordnance Survey of Northern Ireland licence number DO 6121 ({rspbCreditYear})
+                </>
+              )}
+            </p>
+          )}
           {hasEbirdData && (
             <p className="text-center text-xs text-[var(--text-secondary)] mb-2">
               Bird observations provided by{' '}

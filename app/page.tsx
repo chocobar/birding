@@ -57,7 +57,8 @@ export default function Home() {
 
   // The RSPB credit appears only when reserve cards are rendered; reserves in
   // Northern Ireland additionally require the OSNI licence variant.
-  const showRspbCredit = rspbReserves.length > 0;
+  const showRspbSection = rspbReserves.length > 0;
+  const showRspbCredit = showRspbSection;
   const hasNiRspbReserves = showRspbCredit && hasNorthernIrelandReserves(rspbReserves);
   const rspbCreditYear = new Date().getFullYear();
 
@@ -138,19 +139,27 @@ export default function Home() {
               isUpdating={birdQuery.isFetching && !isLoadingBirds}
             />
 
-            {/* Locations Section */}
-            <LocationList
-              locations={locations}
-              isLoading={isLoadingLocations}
-              isError={locationQuery.isError}
-              isRetrying={locationQuery.isRefetching}
-              onRetry={() => locationQuery.refetch()}
-              postcode={locationName}
-              dataSource={dataSource}
-            />
+            {/* Locations + RSPB reserves: side by side on wide screens so
+                neither list monopolises the page; stacked on mobile and when
+                the RSPB section hides itself */}
+            <div
+              className={`grid gap-14 items-start ${
+                showRspbSection ? 'lg:grid-cols-2 lg:gap-10' : ''
+              }`}
+            >
+              <LocationList
+                locations={locations}
+                isLoading={isLoadingLocations}
+                isError={locationQuery.isError}
+                isRetrying={locationQuery.isRefetching}
+                onRetry={() => locationQuery.refetch()}
+                postcode={locationName}
+                dataSource={dataSource}
+              />
 
-            {/* RSPB Reserves Section (self-hiding when empty) */}
-            <RspbReserveList reserves={rspbReserves} locationName={locationName} />
+              {/* RSPB Reserves Section (self-hiding when empty) */}
+              <RspbReserveList reserves={rspbReserves} locationName={locationName} />
+            </div>
           </div>
         )}
 

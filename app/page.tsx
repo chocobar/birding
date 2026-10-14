@@ -274,6 +274,19 @@ export default function Home() {
             Bird sounds from{' '}
             <a href="https://xeno-canto.org" target="_blank" rel="noopener noreferrer" className="text-[var(--brand-green)] underline decoration-[var(--brand-green-light)] hover:decoration-[var(--brand-green)]">Xeno-canto</a>
           </p>
+          <p className="text-center text-xs text-[var(--text-secondary)] mt-2">
+            Built and hosted with{' '}
+            <span aria-label="love">❤️</span>
+            {' '}
+            <a
+              href="https://app.helix.ml/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[var(--brand-green)] underline decoration-[var(--brand-green-light)] hover:decoration-[var(--brand-green)]"
+            >
+              Helix
+            </a>
+          </p>
         </div>
       </footer>
     </div>

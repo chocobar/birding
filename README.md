@@ -122,8 +122,11 @@ birding/
 │   ├── LocationMap.tsx            # Leaflet.js interactive map component
 │   ├── MapModal.tsx               # Full-screen map modal
 │   ├── ErrorBoundary.tsx          # Error handling component
+│   ├── Analytics.tsx              # First-party analytics mount (pageviews + click capture)
 │   └── Providers.tsx              # React Query provider
 ├── lib/
+│   ├── analytics/
+│   │   └── track.ts               # Client-side tracker helpers (fire-and-forget)
 │   ├── api/
 │   │   ├── birdClient.ts          # Bird data (eBird live + mock fallback)
 │   │   ├── geoapify.ts            # Geoapify Places/geocoding client (locations, paths)
@@ -138,6 +141,10 @@ birding/
 │   │   ├── Location.ts
 │   │   ├── GeocodedLocation.ts
 │   │   └── index.ts               # Barrel exports
+│   ├── server/
+│   │   ├── analytics.ts           # Analytics storage (SQLite), UA parsing, dashboard queries
+│   │   ├── sightingArchive.ts     # JSON archive of eBird sightings (30-day+ windows)
+│   │   └── rspbReserves.ts        # RSPB reserves snapshot (SQLite-cached ArcGIS feed)
 │   └── utils/
 │       └── distanceCalculator.ts   # Haversine distance formula
 └── public/                        # Static assets
@@ -280,6 +287,66 @@ The app ships with the technical SEO foundations in place:
 - **`sitemap.xml`** generated from `app/sitemap.ts`
 - **Open Graph image** generated from `app/opengraph-image.tsx` (used for both `og:image` and `twitter:image`)
 - **Structured data**: JSON-LD `WebSite` + `WebApplication` schema injected in the root layout
+
+## Analytics
+
+The site ships with **first-party, privacy-friendly analytics** — no third-party
+scripts, no cookies, no accounts needed.
+
+### What's tracked
+
+- **Unique visitors** — a random token each visitor's browser keeps in its own
+  localStorage (rotates when cleared; nothing cross-site or persistent server-side)
+- **Visits (sessions)** — 30-minute activity windows, also localStorage-backed
+- **Pageviews** — on load and on client-side navigation
+- **Region** — country, read server-side from standard CDN geo headers
+  (`cf-ipcountry`, `x-vercel-ip-country`, `fastly-client-country`, …) when the
+  hosting platform provides them; shown as "Unknown" otherwise
+- **Browser / OS / device** — parsed server-side from the User-Agent (Chrome,
+  Safari, Firefox, Edge, …; mobile / tablet / desktop)
+- **Traffic sources** — external referrer of each entry pageview (stored as
+  bare origin), plus `utm_source` / `utm_medium` / `utm_campaign` on landing
+- **Engagement** —
+  - location searches (the typed query, truncated to 120 chars, and whether it
+    came from a suggestion, free text or the geolocate button)
+  - geolocate outcomes (granted / denied / unsupported)
+  - map opens (from bird cards and location cards), bird audio plays
+  - sightings time-range changes, "show more" clicks, theme toggles
+  - named clicks and all outbound link navigation (eBird species pages, RSPB
+    reserve pages, data-source credits, …)
+- **Bots excluded** — search crawlers, monitors and automated browsers
+  (webdrive/no real UA) are filtered server-side and never recorded
+
+Privacy notes: IP addresses are never stored (used only transiently for
+in-memory rate limiting); no personal data beyond the search text a visitor
+typed; events are pruned after 180 days.
+
+### Storage
+
+Events live in SQLite (`analytics_events` table in the shared `birding.sqlite`)
+inside `$HELIX_WEB_SERVICE_DATA_DIR` — the persistent Helix data volume — with
+a gitignored `.data/birding.sqlite` fallback for local development. Collection
+writes through `POST /api/analytics/collect` and is rate-limited and
+size-capped.
+
+### Dashboard
+
+A private dashboard lives at **[/analytics](https://birding.live/analytics)**
+showing visitors, pageviews, sessions, a daily traffic chart, devices,
+browsers, countries, traffic sources, top pages, top searches and an
+engagement breakdown, with 1/7/30/90-day ranges.
+
+To enable it, set the key in `.env.local` (and in the deployment environment):
+
+```
+ANALYTICS_DASHBOARD_KEY=choose-a-long-random-string
+```
+
+Enter that key once at `/analytics`; an httpOnly cookie (which stores a hash of
+the key, never the key itself) unlocks it for 30 days. When the variable is
+unset the dashboard 404s — collection itself keeps running.
+
+To turn analytics off entirely (tracker and collector), set `ANALYTICS_DISABLED=1`.
 
 ## Browser Support
 

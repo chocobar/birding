@@ -42,6 +42,7 @@ export default function RspbReserveCard({ reserve }: RspbReserveCardProps) {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[var(--brand-green)] bg-[var(--brand-green)]/5 border border-[var(--brand-green)]/20 rounded-full hover:bg-[var(--brand-green)] hover:text-white hover:border-[var(--brand-green)] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--brand-green)] focus:ring-offset-1"
               aria-label={`Events and visiting information for ${reserve.name} on the RSPB website`}
+              data-analytics={`rspb-reserve:${reserve.name}`}
             >
               Events &amp; visiting
               <ExternalLink className="w-3.5 h-3.5" />

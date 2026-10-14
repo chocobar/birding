@@ -249,6 +249,7 @@ export default function NotableSightingsStrip({
                       aria-label={`Learn more about ${sighting.commonName} on eBird`}
                       title={`Learn more about ${sighting.commonName} on eBird`}
                       className="hover:text-[var(--brand-green)] hover:underline focus:outline-none focus:ring-2 focus:ring-[var(--brand-green)] focus:ring-offset-2 rounded"
+                      data-analytics={`notable-species:${sighting.commonName}`}
                     >
                       {sighting.commonName}
                     </a>

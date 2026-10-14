@@ -1,6 +1,7 @@
 'use client';
 
 import { TIME_RANGES, TimeRangeId } from '@/lib/types/TimeRange';
+import { trackEvent } from '@/lib/analytics/track';
 
 interface TimeRangeFilterProps {
   value: TimeRangeId;
@@ -24,7 +25,10 @@ export default function TimeRangeFilter({ value, onChange, disabled }: TimeRange
             type="button"
             aria-pressed={selected}
             disabled={disabled}
-            onClick={() => onChange(range.id)}
+            onClick={() => {
+              if (!selected) trackEvent('time_range', range.id);
+              onChange(range.id);
+            }}
             className={`px-3.5 py-1.5 text-sm font-medium rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--brand-green)] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
               selected
                 ? 'bg-[var(--brand-green)] text-white border border-[var(--brand-green)]'

@@ -5,6 +5,7 @@ import { MapPin, Trees, Waves, Leaf, Footprints, Map, ExternalLink } from 'lucid
 import { formatDistance } from '@/lib/utils/distanceCalculator';
 import dynamic from 'next/dynamic';
 import { useMapOpen } from './MapOpenContext';
+import { trackEvent } from '@/lib/analytics/track';
 
 const MapModal = dynamic(() => import('./MapModal'), { ssr: false });
 
@@ -151,7 +152,10 @@ export default function LocationCard({ location }: LocationCardProps) {
                   </a>
                 )}
                 <button
-                  onClick={() => openMap(mapKey)}
+                  onClick={() => {
+                    openMap(mapKey);
+                    trackEvent('map_open', location.name, { source: 'location' });
+                  }}
                   className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[var(--brand-green)] bg-[var(--brand-green)]/5 border border-[var(--brand-green)]/20 rounded-full hover:bg-[var(--brand-green)] hover:text-white hover:border-[var(--brand-green)] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--brand-green)] focus:ring-offset-1"
                   aria-label={
                     location.type === 'trail'

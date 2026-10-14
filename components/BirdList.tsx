@@ -417,6 +417,7 @@ export default function BirdList({
         <div className="mt-8 text-center">
           <button
             onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
+            data-analytics="show-more-sightings"
             className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-medium text-[var(--brand-green)] bg-[var(--warm-sand)] border border-[var(--border-light)] rounded-full hover:bg-[var(--brand-green)] hover:text-white hover:border-[var(--brand-green)] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--brand-green)] focus:ring-offset-2"
           >
             Show more sightings

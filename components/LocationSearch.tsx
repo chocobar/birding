@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, ChangeEvent, KeyboardEvent } from 'react';
 import { Search, MapPin } from 'lucide-react';
 import { GeocodedLocation } from '@/lib/types';
 import { searchLocations, reverseGeocode } from '@/lib/api/geocodeClient';
+import { trackEvent } from '@/lib/analytics/track';
 
 interface LocationSearchProps {
   onSearch: (location: GeocodedLocation) => void;
@@ -94,6 +95,10 @@ export default function LocationSearch({ onSearch }: LocationSearchProps) {
     setInputValue(location.displayName);
     clearSuggestions();
     setSearchError(null);
+    trackEvent('search', inputValue.trim().slice(0, 120), {
+      source: 'suggestion',
+      results: suggestions.length,
+    });
     onSearch(location);
   };
 
@@ -113,10 +118,12 @@ export default function LocationSearch({ onSearch }: LocationSearchProps) {
       const results = await searchLocations(query);
       if (results.length === 0) {
         setSearchError(`No location found for "${query}"`);
+        trackEvent('search', query.slice(0, 120), { source: 'freetext', results: 0 });
         return;
       }
       const best = results[0];
       setInputValue(best.displayName);
+      trackEvent('search', query.slice(0, 120), { source: 'freetext', results: results.length });
       onSearch(best);
     } catch {
       setSearchError('Failed to find that location. Please try again.');
@@ -159,6 +166,7 @@ export default function LocationSearch({ onSearch }: LocationSearchProps) {
   const handleGetLocation = () => {
     if (!navigator.geolocation) {
       setSearchError('Geolocation is not supported by your browser');
+      trackEvent('geolocate', 'unsupported');
       return;
     }
 
@@ -180,25 +188,31 @@ export default function LocationSearch({ onSearch }: LocationSearchProps) {
 
         setInputValue(displayName);
         setIsGettingLocation(false);
+        trackEvent('geolocate', 'granted');
         onSearch({ displayName, latitude, longitude });
       },
       (error) => {
         setIsGettingLocation(false);
         let errorMessage = 'Failed to get your location';
+        let outcome = 'failed';
 
         switch (error.code) {
           case error.PERMISSION_DENIED:
             errorMessage = 'Location permission denied. Please enable location access.';
+            outcome = 'denied';
             break;
           case error.POSITION_UNAVAILABLE:
             errorMessage = 'Location information unavailable.';
+            outcome = 'unavailable';
             break;
           case error.TIMEOUT:
             errorMessage = 'Location request timed out.';
+            outcome = 'timeout';
             break;
         }
 
         setSearchError(errorMessage);
+        trackEvent('geolocate', outcome);
       },
       {
         enableHighAccuracy: true,

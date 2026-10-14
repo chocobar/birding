@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic';
 import { Bird, Pause, Play, LoaderCircle } from 'lucide-react';
 import { useMapOpen } from './MapOpenContext';
 import { BirdSoundInfo } from '@/lib/api/xenoCantoLookup';
+import { trackEvent } from '@/lib/analytics/track';
 
 const MapModal = dynamic(() => import('./MapModal'), { ssr: false });
 
@@ -160,6 +161,7 @@ export default function BirdCard({
             aria-label={`Learn more about ${bird.commonName} on ${sourceName}`}
             title={`Learn more about ${bird.commonName} on ${sourceName}`}
             className="text-[var(--text-primary)] hover:text-[var(--brand-green)] hover:underline focus:outline-none focus:ring-2 focus:ring-[var(--brand-green)] focus:ring-offset-2 rounded"
+            data-analytics={`bird-learn-more:${bird.commonName}`}
           >
             {bird.commonName}
           </a>
@@ -180,7 +182,10 @@ export default function BirdCard({
               <span className="flex items-center gap-1">
                 {bird.latitude != null && bird.longitude != null ? (
                   <button
-                    onClick={() => openMap(mapKey)}
+                    onClick={() => {
+                      openMap(mapKey);
+                      trackEvent('map_open', bird.commonName, { source: 'bird' });
+                    }}
                     className="inline-flex items-center gap-1 text-[var(--brand-green)] hover:underline focus:outline-none"
                     aria-label={`View ${bird.locationName} on map`}
                   >
@@ -221,7 +226,11 @@ export default function BirdCard({
           <div className="mt-3">
             <button
               type="button"
-              onClick={() => onToggleSound?.(sound!)}
+              onClick={() => {
+                // Only the transition into playing is the engagement signal
+                if (!isSoundPlaying) trackEvent('audio_play', bird.commonName);
+                onToggleSound?.(sound!);
+              }}
               aria-label={`${isSoundPlaying ? 'Pause' : 'Play'} ${bird.commonName} audio`}
               title={
                 isSoundPlaying

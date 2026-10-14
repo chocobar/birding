@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import Providers from "@/components/Providers";
+import Analytics from "@/components/Analytics";
 import "./globals.css";
 
 const inter = Inter({
@@ -24,6 +25,10 @@ const themeScript = `
 `;
 
 const googleVerification = process.env.GOOGLE_SITE_VERIFICATION;
+
+// Analytics is first-party and cookieless; set ANALYTICS_DISABLED=1 to turn
+// both the browser tracker and the collector endpoint off entirely.
+const analyticsEnabled = process.env.ANALYTICS_DISABLED !== "1";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -133,6 +138,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
         />
         <Providers>{children}</Providers>
+        {analyticsEnabled && <Analytics />}
       </body>
     </html>
   );

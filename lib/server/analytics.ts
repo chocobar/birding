@@ -306,14 +306,6 @@ function openDb(): DatabaseSync | null {
   return db;
 }
 
-/**
- * Is analytics collection enabled? An explicit ANALYTICS_DISABLED=1 env turns
- * the collector into a silent no-op (the endpoint still answers 204).
- */
-export function isAnalyticsEnabled(): boolean {
-  return process.env.ANALYTICS_DISABLED !== '1';
-}
-
 /** Queue `events` for insert; resolves once they are durably written (or dropped). */
 export async function recordEvents(events: StoredEvent[]): Promise<void> {
   writeQueue = writeQueue

@@ -1,9 +1,9 @@
 import { NextRequest } from 'next/server';
+import { resolveAnalyticsProvider } from '@/lib/server/analyticsProvider';
 import {
   countryFromHeaders,
   EVENT_NAMES,
   IncomingEvent,
-  isAnalyticsEnabled,
   languageFromHeaders,
   parseUserAgent,
   recordEvents,
@@ -11,12 +11,17 @@ import {
 } from '@/lib/server/analytics';
 
 /**
- * POST /api/analytics/collect — the single write endpoint for the first-party
- * analytics tracker. Accepts a small JSON batch, validates it strictly,
- * enriches each event server-side (browser/OS/device from the User-Agent,
- * country from standard CDN geo headers, language from Accept-Language) and
- * stores it in SQLite. Bots, oversized payloads and flood traffic are dropped
- * silently — the tracker must never be able to break the page or the server.
+ * POST /api/analytics/collect — the single write endpoint for the built-in
+ * first-party analytics sink. Accepts a small JSON batch, validates it
+ * strictly, enriches each event server-side (browser/OS/device from the
+ * User-Agent, country from standard CDN geo headers, language from
+ * Accept-Language) and stores it in SQLite. Bots, oversized payloads and
+ * flood traffic are dropped silently — the tracker must never be able to
+ * break the page or the server.
+ *
+ * When a SaaS analytics provider is configured (or analytics is disabled)
+ * this endpoint becomes a no-op: the tracker isn't rendered and any stray
+ * calls are answered 204 without storing anything.
  */
 
 const MAX_EVENTS_PER_BATCH = 25;
@@ -109,7 +114,8 @@ function parseEvent(raw: unknown, now: number): IncomingEvent | null {
 }
 
 export async function POST(request: NextRequest) {
-  if (!isAnalyticsEnabled()) {
+  const provider = resolveAnalyticsProvider();
+  if (!provider || provider.provider !== 'built-in') {
     return new Response(null, { status: 204 });
   }
 

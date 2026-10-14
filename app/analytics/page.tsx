@@ -12,6 +12,7 @@ import {
   getDashboardData,
   isDashboardRange,
 } from '@/lib/server/analytics';
+import { resolveAnalyticsProvider } from '@/lib/server/analyticsProvider';
 
 /**
  * Private analytics dashboard for birding.live.
@@ -50,6 +51,7 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
   const parsedRange = Number(rangeParam);
   const days: DashboardRangeDays = isDashboardRange(parsedRange) ? parsedRange : 30;
   const data = getDashboardData(days);
+  const provider = resolveAnalyticsProvider();
 
   return (
     <div className="min-h-screen bg-[var(--warm-cream)] text-[var(--text-primary)]">
@@ -82,6 +84,14 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
             ))}
           </nav>
         </header>
+
+        {provider && provider.provider !== 'built-in' && (
+          <p className="mb-6 p-4 rounded-xl bg-sky-50 border border-sky-200 text-sky-900 text-sm">
+            Tracking currently goes to the {provider.provider === 'ga4' ? 'Google Analytics 4' : provider.provider}{' '}
+            integration — that provider&apos;s own dashboard is authoritative. This page only shows
+            data collected before the switch (or since, if the built-in collector is still active).
+          </p>
+        )}
 
         {!data.dbEnabled && (
           <p className="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm">

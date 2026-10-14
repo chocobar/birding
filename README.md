@@ -122,7 +122,8 @@ birding/
 │   ├── LocationMap.tsx            # Leaflet.js interactive map component
 │   ├── MapModal.tsx               # Full-screen map modal
 │   ├── ErrorBoundary.tsx          # Error handling component
-│   ├── Analytics.tsx              # First-party analytics mount (pageviews + click capture)
+│   ├── Analytics.tsx              # Analytics mount (pageviews + click capture)
+│   ├── AnalyticsProviderScripts.tsx # Provider script tags (Umami/Plausible/PostHog/GA4)
 │   └── Providers.tsx              # React Query provider
 ├── lib/
 │   ├── analytics/
@@ -142,7 +143,8 @@ birding/
 │   │   ├── GeocodedLocation.ts
 │   │   └── index.ts               # Barrel exports
 │   ├── server/
-│   │   ├── analytics.ts           # Analytics storage (SQLite), UA parsing, dashboard queries
+│   │   ├── analytics.ts           # Built-in analytics storage (SQLite), UA parsing, dashboard queries
+│   │   ├── analyticsProvider.ts   # Provider selection (built-in vs Umami/Plausible/PostHog/GA4)
 │   │   ├── sightingArchive.ts     # JSON archive of eBird sightings (30-day+ windows)
 │   │   └── rspbReserves.ts        # RSPB reserves snapshot (SQLite-cached ArcGIS feed)
 │   └── utils/
@@ -290,10 +292,21 @@ The app ships with the technical SEO foundations in place:
 
 ## Analytics
 
-The site ships with **first-party, privacy-friendly analytics** — no third-party
-scripts, no cookies, no accounts needed.
+The site ships with pluggable, privacy-friendly analytics — no cookies and no
+consent banner needed for any of the providers below. One set of engagement
+instrumentation feeds whichever sink is configured:
 
-### What's tracked
+| Sink | Env var(s) | Notes |
+| --- | --- | --- |
+| **Built-in** (default) | — | Events go to the site's own SQLite store; private dashboard at `/analytics` |
+| [Umami](https://umami.is) | `UMAMI_WEBSITE_ID` (+ `UMAMI_SCRIPT_URL` for self-hosted) | Free cloud tier; lightest option |
+| [Plausible](https://plausible.io) | `PLAUSIBLE_DOMAIN` | Paid cloud; privacy-focused, clean UI |
+| [PostHog](https://posthog.com) | `POSTHOG_API_KEY` (+ `POSTHOG_API_HOST`) | Free tier (1M events/mo); **autocaptures every click**, heatmaps, funnels — best fit for "what are visitors clicking" |
+| [Google Analytics 4](https://analytics.google.com) | `GA4_MEASUREMENT_ID` | Free, familiar, heaviest script; shares data with Google |
+
+Set the credential (or force a choice with `ANALYTICS_PROVIDER=built-in|umami|plausible|posthog|ga4`) and redeploy. Provider ids/keys are read at build time (like `GOOGLE_SITE_VERIFICATION`), so set them before the build/deploy. `ANALYTICS_DISABLED=1` turns analytics off entirely.
+
+### What's tracked (any provider)
 
 - **Unique visitors** — a random token each visitor's browser keeps in its own
   localStorage (rotates when cleared; nothing cross-site or persistent server-side)
@@ -317,17 +330,26 @@ scripts, no cookies, no accounts needed.
 - **Bots excluded** — search crawlers, monitors and automated browsers
   (webdrive/no real UA) are filtered server-side and never recorded
 
+With PostHog, raw clicks/outbound navigation come from its autocapture instead
+of the generic listeners (its heatmaps and funnels work out of the box).
+
 Privacy notes: IP addresses are never stored (used only transiently for
 in-memory rate limiting); no personal data beyond the search text a visitor
-typed; events are pruned after 180 days.
+typed; events are pruned after 180 days. Note that switching to a SaaS
+provider shares those events (including search text) with that provider —
+keep the built-in sink if you want the data to never leave your server.
 
-### Storage
+### Built-in storage
 
 Events live in SQLite (`analytics_events` table in the shared `birding.sqlite`)
 inside `$HELIX_WEB_SERVICE_DATA_DIR` — the persistent Helix data volume — with
 a gitignored `.data/birding.sqlite` fallback for local development. Collection
 writes through `POST /api/analytics/collect` and is rate-limited and
-size-capped.
+size-capped. Retention is capped twice over: events older than 180 days are
+pruned daily, and the table is hard-capped at 500k rows — for a hobby-site
+traffic level that is a few megabytes, not unbounded growth. When a SaaS
+provider is configured the collector becomes a no-op and the dashboard notes
+that the provider's dashboard is authoritative.
 
 ### Dashboard
 

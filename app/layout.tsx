@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import Providers from "@/components/Providers";
 import Analytics from "@/components/Analytics";
+import AnalyticsProviderScripts from "@/components/AnalyticsProviderScripts";
+import { resolveAnalyticsProvider } from "@/lib/server/analyticsProvider";
 import "./globals.css";
 
 const inter = Inter({
@@ -26,9 +28,10 @@ const themeScript = `
 
 const googleVerification = process.env.GOOGLE_SITE_VERIFICATION;
 
-// Analytics is first-party and cookieless; set ANALYTICS_DISABLED=1 to turn
-// both the browser tracker and the collector endpoint off entirely.
-const analyticsEnabled = process.env.ANALYTICS_DISABLED !== "1";
+// Which analytics sink is active: the built-in collector by default, or a
+// SaaS provider (Umami/Plausible/PostHog/GA4) when its credential is set.
+// null when ANALYTICS_DISABLED=1 — no tracker is rendered at all.
+const analyticsProvider = resolveAnalyticsProvider();
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -131,6 +134,7 @@ export default function RootLayout({
     <html lang="en" className={`${inter.className} h-full antialiased`} suppressHydrationWarning>
       <head>
         <script id="theme" dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <AnalyticsProviderScripts config={analyticsProvider ?? { provider: "built-in" }} />
       </head>
       <body className="min-h-full flex flex-col">
         <script
@@ -138,7 +142,14 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
         />
         <Providers>{children}</Providers>
-        {analyticsEnabled && <Analytics />}
+        {analyticsProvider && (
+          <Analytics
+            provider={analyticsProvider.provider}
+            measurementId={analyticsProvider.measurementId}
+            posthogApiKey={analyticsProvider.apiKey}
+            posthogApiHost={analyticsProvider.apiHost}
+          />
+        )}
       </body>
     </html>
   );

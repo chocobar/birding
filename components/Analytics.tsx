@@ -2,7 +2,8 @@
 
 import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
-import { trackEvent, trackPageview } from '@/lib/analytics/track';
+import type { AnalyticsProviderId } from '@/lib/server/analyticsProvider';
+import { configureAnalytics, trackEvent, trackPageview } from '@/lib/analytics/track';
 
 /**
  * The analytics mount point, rendered once from the root layout. Renders
@@ -11,15 +12,40 @@ import { trackEvent, trackPageview } from '@/lib/analytics/track';
  * attribute plus outbound link navigation, so individual components can opt
  * into click tracking with a single attribute.
  *
+ * Where events go is decided by the layout: `provider="built-in"` posts to
+ * the site's own collector (SQLite + /analytics dashboard); any other value
+ * forwards the same events to that SaaS provider's browser API.
+ *
+ * PostHog keeps its own autocapture for raw clicks, so the generic
+ * click/outbound listener is skipped in that mode — only the named
+ * engagement events (searches, map opens, audio, …) are explicitly sent.
+ *
  * The dashboard itself (anything under /analytics) is excluded — the owner's
  * own visits shouldn't pollute the numbers.
  */
 
 const UNTRACKED_PREFIX = '/analytics';
 
-export default function Analytics() {
+export interface AnalyticsProps {
+  provider: AnalyticsProviderId;
+  measurementId?: string;
+  posthogApiKey?: string;
+  posthogApiHost?: string;
+}
+
+export default function Analytics({
+  provider,
+  measurementId,
+  posthogApiKey,
+  posthogApiHost,
+}: AnalyticsProps) {
   const pathname = usePathname();
   const lastTrackedPath = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (provider === 'built-in') return;
+    configureAnalytics({ provider, measurementId, posthogApiKey, posthogApiHost });
+  }, [provider, measurementId, posthogApiKey, posthogApiHost]);
 
   useEffect(() => {
     if (!pathname || pathname.startsWith(UNTRACKED_PREFIX)) return;
@@ -29,6 +55,8 @@ export default function Analytics() {
   }, [pathname]);
 
   useEffect(() => {
+    if (provider === 'posthog') return; // autocapture handles raw clicks
+
     const handleClick = (event: MouseEvent) => {
       const target = event.target instanceof Element ? event.target : null;
       if (!target) return;
@@ -60,7 +88,7 @@ export default function Analytics() {
 
     document.addEventListener('click', handleClick, { capture: true, passive: true });
     return () => document.removeEventListener('click', handleClick, { capture: true });
-  }, []);
+  }, [provider]);
 
   return null;
 }

@@ -357,20 +357,15 @@ The app works on any platform supporting Next.js:
 
 ## License
 
-This project is licensed under terms similar to the Helix license. You can use this software for free for:
+The source code is licensed under the **GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later)** — see [LICENSE](LICENSE) for the full text and [LICENSE.md](LICENSE.md) for a plain-English summary.
 
-- **Personal Use** — Individual, non-commercial use
-- **Educational Use** — Schools and universities
-- **Small Business Use** — Companies with < 250 employees and < $10M annual revenue
-- **Open Source Projects** — Non-commercial open source work
+- **Free to use, study, modify and share** for any purpose, including commercially
+- If you run a **modified version as a web service**, you must release your modified source to your users under the same license (AGPL §13) — so a hosted fork of this site can never be closed-source
+- Forks and redistributions must remain **AGPL-3.0-or-later**
+- The **"Birding Discovery" name, logo and brand assets are not covered** by the open license and may not be reused — forks must rebrand
+- **Commercial licensing** (dual license) is available for use cases that cannot comply with the AGPL — open an issue on GitHub to discuss
 
-For commercial use outside these terms, please see [LICENSE.md](LICENSE.md) for details.
-
-**You are not allowed to:**
-- Use this software to build a competing product
-- Redistribute commercially without permission
-
-See [LICENSE.md](LICENSE.md) for complete license terms.
+Data sources are governed by their own licenses — see [DATA_ATTRIBUTION.md](DATA_ATTRIBUTION.md) for the full attribution and compliance details.
 
 ## Contact
 

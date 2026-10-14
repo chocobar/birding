@@ -1,71 +1,36 @@
-# UK Birding Discovery License
+# License
 
-Last updated: March 2025
+The source code of Birding Discovery is free software, licensed under the
+**GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later)**.
 
-## License Terms
+- Full license text: [LICENSE](LICENSE)
+- SPDX identifier: `AGPL-3.0-or-later`
+- Copyright © 2025–2026 Birding Discovery contributors
 
-This software is licensed under terms similar to Docker Desktop and Helix. You can use this software for free for:
+## What this means in practice
 
-### ✅ Allowed Uses (No License Required)
+- **You are free to use, study, share and modify the code** — for any purpose, including commercially. That is what an OSI-approved open-source license means, and we chose one deliberately.
+- **If you modify the code and run it as a network service** (i.e. host your own instance of the site), you must offer your modified full source to that service's users under AGPL-3.0-or-later ([section 13](https://www.gnu.org/licenses/agpl-3.0.en.html#section13)). Running an unmodified copy as a service still requires keeping copyright and license notices intact.
+- **Forks and redistributions must remain AGPL-3.0-or-later** and cannot be turned into closed-source products. Nobody may take this code proprietary — that protection is the point of the license.
 
-1. **Personal Use:** Individuals using the software for personal, non-commercial purposes
-2. **Educational Use:** Schools, universities, and educational institutions for academic or research purposes
-3. **Small Business Use:** Companies with:
-   - Fewer than 250 employees, AND
-   - Less than $10,000,000 USD (or equivalent) in annual revenue
-4. **Open Source Projects:** Use in non-commercial open source projects
+Per [section 13](https://www.gnu.org/licenses/agpl-3.0.en.html#section13), hosted instances are encouraged to expose their source to users (for example via a "Source" link in the interface).
 
-### ❌ Restricted Uses (License Required)
+## Branding is not covered by the open license
 
-If you fall outside the categories above, you need a commercial license to use this software.
+The AGPL applies to the source code in this repository **with one explicit carve-out**:
 
-**You are NOT allowed to:**
-- Use this software to build a product that competes with UK Birding Discovery
-- Redistribute this software as part of a commercial product without permission
-- Remove or modify copyright notices or attribution
-- Use this software in a commercial enterprise with 250+ employees or $10M+ annual revenue without a license
+- The **"Birding Discovery" name, the logo and other brand assets** are not licensed for reuse under the AGPL or otherwise. They are the trademark and trade dress of the project owner. Forks and derivative deployments **must rebrand** and may not present themselves as, or hold themselves out as affiliated with, Birding Discovery.
 
-### 🏢 Large Commercial Use
+Everything else in the repository — including site copy rendered by the application — is covered by the AGPL. Third-party data and media keep their own licenses regardless; see [DATA_ATTRIBUTION.md](DATA_ATTRIBUTION.md).
 
-For companies that exceed the small business thresholds above, please contact the repository owner for licensing terms.
+## Dual licensing
 
-## Why These Terms?
+Because the project owner holds the copyright, the code is also available under **alternative commercial licenses** for use cases that cannot comply with the AGPL (for example, embedding in a proprietary product or a hosted service that cannot publish its source). To discuss terms, open an issue on GitHub or contact the repository owner.
 
-- This is an independent open source project maintained by individual contributors
-- We want to keep the software free for individuals, students, and small businesses
-- We need to prevent large corporations from using our work commercially without contributing back
-- We don't want cloud providers to rebrand and resell this as a service
+## No warranty
 
-## Attribution
-
-If you use this software, please provide attribution:
-
-```
-Powered by UK Birding Discovery
-https://github.com/[your-username]/birding-3
-```
-
-## Data Sources
-
-This software integrates with third-party data sources:
-- **Nominatim / OpenStreetMap** - Global geocoding (ODbL)
-- **OpenStreetMap** - Location data via Overpass API (ODbL)
-- **Unsplash** - Bird photography (Unsplash License)
-
-Please respect the licenses and terms of these data providers.
-
-## Copyright
-
-Copyright © 2025 [Your Name/Organization]. All rights reserved.
-
-## Disclaimer
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+The program is provided under AGPL-3.0-or-later **without any warranty**; see sections 15 and 16 of [LICENSE](LICENSE) for the exact disclaimers of warranty and liability.
 
 ## Questions?
 
-For licensing inquiries or questions about commercial use, please open an issue on GitHub.
-
----
-
-**Note:** This license is inspired by the Helix license (https://github.com/helixml/helix). If you would like to use portions of this code under a more permissive license for a specific purpose, please get in touch.
+For licensing inquiries, dual-licensing requests or questions, please open an issue on GitHub.

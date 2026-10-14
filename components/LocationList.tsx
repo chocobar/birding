@@ -101,12 +101,17 @@ export default function LocationList({
   if (isLoading) {
     return (
       <section className="w-full" aria-label="Loading location results">
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">
-            Nearby Birding Locations
-          </h2>
+        <div className="flex items-center gap-3 mb-8">
+          <div className="flex-shrink-0 w-11 h-11 rounded-full bg-gradient-to-br from-[var(--brand-green)] to-[var(--brand-green-dark)] border-2 border-white/60 dark:border-white/25 shadow-md shadow-emerald-800/30 flex items-center justify-center">
+            <MapPin className="w-6 h-6 text-white" aria-hidden="true" />
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">
+              Nearby Birding Locations
+            </h2>
+          </div>
         </div>
-        <div className="space-y-3">
+        <div className="space-y-3 lg:row-start-3">
           {Array.from({ length: PAGE_SIZE }).map((_, index) => (
             <SkeletonCard key={index} />
           ))}
@@ -181,77 +186,86 @@ export default function LocationList({
 
   return (
     <section className="w-full" aria-label="Nearby birding locations">
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">
-          Nearby Birding Locations
-        </h2>
-        <p className="text-[var(--text-secondary)] mt-1">
-          {filtered.length} location{filtered.length !== 1 ? 's' : ''} within 5 miles
-          {postcode && ` of ${postcode}`}
-          {filter !== 'all' && ` (${FILTERS.find((f) => f.key === filter)?.label})`}
-        </p>
+      <div className="flex items-center gap-3 mb-8">
+        <div className="flex-shrink-0 w-11 h-11 rounded-full bg-gradient-to-br from-[var(--brand-green)] to-[var(--brand-green-dark)] border-2 border-white/60 dark:border-white/25 shadow-md shadow-emerald-800/30 flex items-center justify-center">
+          <MapPin className="w-6 h-6 text-white" aria-hidden="true" />
+        </div>
+        <div className="min-w-0">
+          <h2 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">
+            Nearby Birding Locations
+          </h2>
+          <p className="text-[var(--text-secondary)] mt-1">
+            {filtered.length} location{filtered.length !== 1 ? 's' : ''} within 5 miles
+            {postcode && ` of ${postcode}`}
+            {filter !== 'all' && ` (${FILTERS.find((f) => f.key === filter)?.label})`}
+          </p>
+        </div>
       </div>
 
       <div className="mb-6">
         <FilterChips active={filter} counts={counts} onChange={handleFilterChange} />
       </div>
 
-      <div className="space-y-3">
-        {visibleLocations.length === 0 ? (
-          <p className="text-sm text-[var(--text-secondary)] py-6 text-center">
-            No locations of this type were found nearby.
-          </p>
-        ) : (
-          visibleLocations.map((location, index) => (
-            <div
-              key={location.id}
-              className={index >= PAGE_SIZE ? 'animate-fade-in-up' : ''}
-            >
-              <LocationCard location={location} />
-            </div>
-          ))
-        )}
-      </div>
-
-      {hasMore && (
-        <div className="flex flex-col items-center mt-6 gap-1">
-          <button
-            onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
-            className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-medium text-[var(--brand-green)] bg-[var(--warm-sand)] border border-[var(--border-light)] rounded-full hover:bg-[var(--brand-green)] hover:text-white hover:border-[var(--brand-green)] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--brand-green)] focus:ring-offset-2"
-          >
-            Show more locations
-            <ChevronDown className="w-4 h-4" />
-          </button>
-          <p className="text-xs text-[var(--text-secondary)]">
-            Showing {visibleLocations.length} of {filtered.length}
-          </p>
+      {/* Cards, load-more and attribution share the third subgrid row so the
+          RSPB column's list stays level with the first card */}
+      <div>
+        <div className="space-y-3">
+          {visibleLocations.length === 0 ? (
+            <p className="text-sm text-[var(--text-secondary)] py-6 text-center">
+              No locations of this type were found nearby.
+            </p>
+          ) : (
+            visibleLocations.map((location, index) => (
+              <div
+                key={location.id}
+                className={index >= PAGE_SIZE ? 'animate-fade-in-up' : ''}
+              >
+                <LocationCard location={location} />
+              </div>
+            ))
+          )}
         </div>
-      )}
 
-      <p className="mt-8 text-xs text-[var(--text-secondary)] text-center">
-        Location data ©{' '}
-        <a
-          href="https://www.openstreetmap.org/copyright"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-[var(--brand-green)] underline decoration-[var(--brand-green-light)] hover:decoration-[var(--brand-green)]"
-        >
-          OpenStreetMap contributors
-        </a>
-        {dataSource === 'geoapify' && (
-          <>
-            {' · '}
-            <a
-              href="https://www.geoapify.com/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[var(--brand-green)] underline decoration-[var(--brand-green-light)] hover:decoration-[var(--brand-green)]"
+        {hasMore && (
+          <div className="flex flex-col items-center mt-6 gap-1">
+            <button
+              onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
+              className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-medium text-[var(--brand-green)] bg-[var(--warm-sand)] border border-[var(--border-light)] rounded-full hover:bg-[var(--brand-green)] hover:text-white hover:border-[var(--brand-green)] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--brand-green)] focus:ring-offset-2"
             >
-              Powered by Geoapify
-            </a>
-          </>
+              Show more locations
+              <ChevronDown className="w-4 h-4" />
+            </button>
+            <p className="text-xs text-[var(--text-secondary)]">
+              Showing {visibleLocations.length} of {filtered.length}
+            </p>
+          </div>
         )}
-      </p>
+
+        <p className="mt-8 text-xs text-[var(--text-secondary)] text-center">
+          Location data ©{' '}
+          <a
+            href="https://www.openstreetmap.org/copyright"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[var(--brand-green)] underline decoration-[var(--brand-green-light)] hover:decoration-[var(--brand-green)]"
+          >
+            OpenStreetMap contributors
+          </a>
+          {dataSource === 'geoapify' && (
+            <>
+              {' · '}
+              <a
+                href="https://www.geoapify.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[var(--brand-green)] underline decoration-[var(--brand-green-light)] hover:decoration-[var(--brand-green)]"
+              >
+                Powered by Geoapify
+              </a>
+            </>
+          )}
+        </p>
+      </div>
     </section>
   );
 }

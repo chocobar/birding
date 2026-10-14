@@ -28,9 +28,9 @@ const themeScript = `
 
 const googleVerification = process.env.GOOGLE_SITE_VERIFICATION;
 
-// Which analytics sink is active: the built-in collector by default, or a
-// SaaS provider (Umami/Plausible/PostHog/GA4) when its credential is set.
-// null when ANALYTICS_DISABLED=1 — no tracker is rendered at all.
+// Which SaaS analytics provider is active (Umami/Plausible/PostHog/GA4),
+// or null when none is configured / ANALYTICS_DISABLED=1 — in which case
+// no tracker is rendered at all.
 const analyticsProvider = resolveAnalyticsProvider();
 
 export const metadata: Metadata = {
@@ -134,7 +134,7 @@ export default function RootLayout({
     <html lang="en" className={`${inter.className} h-full antialiased`} suppressHydrationWarning>
       <head>
         <script id="theme" dangerouslySetInnerHTML={{ __html: themeScript }} />
-        <AnalyticsProviderScripts config={analyticsProvider ?? { provider: "built-in" }} />
+        {analyticsProvider && <AnalyticsProviderScripts config={analyticsProvider} />}
       </head>
       <body className="min-h-full flex flex-col">
         <script

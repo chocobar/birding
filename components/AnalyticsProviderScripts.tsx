@@ -2,10 +2,10 @@ import type { AnalyticsProviderConfig } from '@/lib/server/analyticsProvider';
 import { posthogScriptUrl } from '@/lib/server/analyticsProvider';
 
 /**
- * Server-rendered script tags for the configured external analytics provider.
- * Renders nothing for the built-in provider (which needs no third-party
- * script). The credential values are public by design — the same values are
- * visible in the page source of any site using these providers.
+ * Server-rendered script tags for the configured analytics provider. Rendered
+ * only when a provider is configured — the credential values are public by
+ * design, the same values are visible in the page source of any site using
+ * these providers.
  */
 export default function AnalyticsProviderScripts({ config }: { config: AnalyticsProviderConfig }) {
   switch (config.provider) {

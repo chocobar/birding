@@ -6,25 +6,17 @@ import type { AnalyticsProviderId } from '@/lib/server/analyticsProvider';
 import { configureAnalytics, trackEvent, trackPageview } from '@/lib/analytics/track';
 
 /**
- * The analytics mount point, rendered once from the root layout. Renders
- * nothing; it (a) sends pageviews on load and on client-side navigation and
- * (b) auto-captures clicks on elements marked with a `data-analytics`
- * attribute plus outbound link navigation, so individual components can opt
- * into click tracking with a single attribute.
- *
- * Where events go is decided by the layout: `provider="built-in"` posts to
- * the site's own collector (SQLite + /analytics dashboard); any other value
- * forwards the same events to that SaaS provider's browser API.
+ * The analytics mount point, rendered once from the root layout when a SaaS
+ * analytics provider is configured. Renders nothing; it (a) sends pageviews
+ * on load and on client-side navigation and (b) auto-captures clicks on
+ * elements marked with a `data-analytics` attribute plus outbound link
+ * navigation, so individual components can opt into click tracking with a
+ * single attribute. Everything is forwarded to the configured provider.
  *
  * PostHog keeps its own autocapture for raw clicks, so the generic
  * click/outbound listener is skipped in that mode — only the named
  * engagement events (searches, map opens, audio, …) are explicitly sent.
- *
- * The dashboard itself (anything under /analytics) is excluded — the owner's
- * own visits shouldn't pollute the numbers.
  */
-
-const UNTRACKED_PREFIX = '/analytics';
 
 export interface AnalyticsProps {
   provider: AnalyticsProviderId;
@@ -43,12 +35,11 @@ export default function Analytics({
   const lastTrackedPath = useRef<string | null>(null);
 
   useEffect(() => {
-    if (provider === 'built-in') return;
     configureAnalytics({ provider, measurementId, posthogApiKey, posthogApiHost });
   }, [provider, measurementId, posthogApiKey, posthogApiHost]);
 
   useEffect(() => {
-    if (!pathname || pathname.startsWith(UNTRACKED_PREFIX)) return;
+    if (!pathname) return;
     if (lastTrackedPath.current === pathname) return;
     lastTrackedPath.current = pathname;
     trackPageview(pathname);

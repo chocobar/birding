@@ -5,7 +5,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/api/", "/analytics"],
+      disallow: "/api/",
     },
     sitemap: "https://birding.live/sitemap.xml",
   };

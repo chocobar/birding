@@ -143,8 +143,7 @@ birding/
 │   │   ├── GeocodedLocation.ts
 │   │   └── index.ts               # Barrel exports
 │   ├── server/
-│   │   ├── analytics.ts           # Built-in analytics storage (SQLite), UA parsing, dashboard queries
-│   │   ├── analyticsProvider.ts   # Provider selection (built-in vs Umami/Plausible/PostHog/GA4)
+│   │   ├── analyticsProvider.ts   # Analytics provider selection (Umami/Plausible/PostHog/GA4)
 │   │   ├── sightingArchive.ts     # JSON archive of eBird sightings (30-day+ windows)
 │   │   └── rspbReserves.ts        # RSPB reserves snapshot (SQLite-cached ArcGIS feed)
 │   └── utils/
@@ -292,34 +291,27 @@ The app ships with the technical SEO foundations in place:
 
 ## Analytics
 
-The site ships with pluggable, privacy-friendly analytics — no cookies and no
-consent banner needed for any of the providers below. One set of engagement
-instrumentation feeds whichever sink is configured:
+The site uses pluggable, cookieless analytics: a lightweight tracker forwards
+pageviews and engagement events to a SaaS analytics provider. There is no
+analytics store of its own — when no provider credential is configured, no
+tracker is rendered at all.
 
-| Sink | Env var(s) | Notes |
+| Provider | Env var(s) | Notes |
 | --- | --- | --- |
-| **Built-in** (default) | — | Events go to the site's own SQLite store; private dashboard at `/analytics` |
 | [Umami](https://umami.is) | `UMAMI_WEBSITE_ID` (+ `UMAMI_SCRIPT_URL` for self-hosted) | Free cloud tier; lightest option |
 | [Plausible](https://plausible.io) | `PLAUSIBLE_DOMAIN` | Paid cloud; privacy-focused, clean UI |
 | [PostHog](https://posthog.com) | `POSTHOG_API_KEY` (+ `POSTHOG_API_HOST`) | Free tier (1M events/mo); **autocaptures every click**, heatmaps, funnels — best fit for "what are visitors clicking" |
 | [Google Analytics 4](https://analytics.google.com) | `GA4_MEASUREMENT_ID` | Free, familiar, heaviest script; shares data with Google |
 
-Set the credential (or force a choice with `ANALYTICS_PROVIDER=built-in|umami|plausible|posthog|ga4`) and redeploy. Provider ids/keys are read at build time (like `GOOGLE_SITE_VERIFICATION`), so set them before the build/deploy. `ANALYTICS_DISABLED=1` turns analytics off entirely.
+Set the credential (or force a choice with `ANALYTICS_PROVIDER=umami|plausible|posthog|ga4`) and redeploy. Provider ids/keys are read at build time (like `GOOGLE_SITE_VERIFICATION`), so set them before the build/deploy. `ANALYTICS_DISABLED=1` turns analytics off entirely.
 
-### What's tracked (any provider)
+### What's tracked
 
-- **Unique visitors** — a random token each visitor's browser keeps in its own
-  localStorage (rotates when cleared; nothing cross-site or persistent server-side)
-- **Visits (sessions)** — 30-minute activity windows, also localStorage-backed
 - **Pageviews** — on load and on client-side navigation
-- **Region** — country, read server-side from standard CDN geo headers
-  (`cf-ipcountry`, `x-vercel-ip-country`, `fastly-client-country`, …) when the
-  hosting platform provides them; shown as "Unknown" otherwise
-- **Browser / OS / device** — parsed server-side from the User-Agent (Chrome,
-  Safari, Firefox, Edge, …; mobile / tablet / desktop)
-- **Traffic sources** — external referrer of each entry pageview (stored as
-  bare origin), plus `utm_source` / `utm_medium` / `utm_campaign` on landing
-- **Engagement** —
+- **Unique visitors / visits, region, browser, OS, device, referrers, UTM
+  tags** — captured by the provider's own tracker (country, browser and
+  device classification are its job, not the app's)
+- **Engagement events** —
   - location searches (the typed query, truncated to 120 chars, and whether it
     came from a suggestion, free text or the geolocate button)
   - geolocate outcomes (granted / denied / unsupported)
@@ -327,48 +319,18 @@ Set the credential (or force a choice with `ANALYTICS_PROVIDER=built-in|umami|pl
   - sightings time-range changes, "show more" clicks, theme toggles
   - named clicks and all outbound link navigation (eBird species pages, RSPB
     reserve pages, data-source credits, …)
-- **Bots excluded** — search crawlers, monitors and automated browsers
-  (webdrive/no real UA) are filtered server-side and never recorded
+
+Events appear in the provider's dashboard: pageviews/visitors/referrers in the
+main stats, the named engagement events under its Events section (as
+`search`, `map_open`, `audio_play`, `geolocate`, `time_range`, `click`,
+`outbound` with a `label` and small props).
 
 With PostHog, raw clicks/outbound navigation come from its autocapture instead
 of the generic listeners (its heatmaps and funnels work out of the box).
 
-Privacy notes: IP addresses are never stored (used only transiently for
-in-memory rate limiting); no personal data beyond the search text a visitor
-typed; events are pruned after 180 days. Note that switching to a SaaS
-provider shares those events (including search text) with that provider —
-keep the built-in sink if you want the data to never leave your server.
-
-### Built-in storage
-
-Events live in SQLite (`analytics_events` table in the shared `birding.sqlite`)
-inside `$HELIX_WEB_SERVICE_DATA_DIR` — the persistent Helix data volume — with
-a gitignored `.data/birding.sqlite` fallback for local development. Collection
-writes through `POST /api/analytics/collect` and is rate-limited and
-size-capped. Retention is capped twice over: events older than 180 days are
-pruned daily, and the table is hard-capped at 500k rows — for a hobby-site
-traffic level that is a few megabytes, not unbounded growth. When a SaaS
-provider is configured the collector becomes a no-op and the dashboard notes
-that the provider's dashboard is authoritative.
-
-### Dashboard
-
-A private dashboard lives at **[/analytics](https://birding.live/analytics)**
-showing visitors, pageviews, sessions, a daily traffic chart, devices,
-browsers, countries, traffic sources, top pages, top searches and an
-engagement breakdown, with 1/7/30/90-day ranges.
-
-To enable it, set the key in `.env.local` (and in the deployment environment):
-
-```
-ANALYTICS_DASHBOARD_KEY=choose-a-long-random-string
-```
-
-Enter that key once at `/analytics`; an httpOnly cookie (which stores a hash of
-the key, never the key itself) unlocks it for 30 days. When the variable is
-unset the dashboard 404s — collection itself keeps running.
-
-To turn analytics off entirely (tracker and collector), set `ANALYTICS_DISABLED=1`.
+Privacy note: all providers above are cookieless. Choosing one does share the
+tracked events (including search text) with that provider — that's the
+trade-off for not running an analytics store yourself.
 
 ## Browser Support
 

@@ -122,8 +122,12 @@ birding/
 │   ├── LocationMap.tsx            # Leaflet.js interactive map component
 │   ├── MapModal.tsx               # Full-screen map modal
 │   ├── ErrorBoundary.tsx          # Error handling component
+│   ├── Analytics.tsx              # Analytics mount (pageviews + click capture)
+│   ├── AnalyticsProviderScripts.tsx # Provider script tags (Umami/Plausible/PostHog/GA4)
 │   └── Providers.tsx              # React Query provider
 ├── lib/
+│   ├── analytics/
+│   │   └── track.ts               # Client-side tracker helpers (fire-and-forget)
 │   ├── api/
 │   │   ├── birdClient.ts          # Bird data (eBird live + mock fallback)
 │   │   ├── geoapify.ts            # Geoapify Places/geocoding client (locations, paths)
@@ -138,6 +142,10 @@ birding/
 │   │   ├── Location.ts
 │   │   ├── GeocodedLocation.ts
 │   │   └── index.ts               # Barrel exports
+│   ├── server/
+│   │   ├── analyticsProvider.ts   # Analytics provider selection (Umami/Plausible/PostHog/GA4)
+│   │   ├── sightingArchive.ts     # JSON archive of eBird sightings (30-day+ windows)
+│   │   └── rspbReserves.ts        # RSPB reserves snapshot (SQLite-cached ArcGIS feed)
 │   └── utils/
 │       └── distanceCalculator.ts   # Haversine distance formula
 └── public/                        # Static assets
@@ -280,6 +288,49 @@ The app ships with the technical SEO foundations in place:
 - **`sitemap.xml`** generated from `app/sitemap.ts`
 - **Open Graph image** generated from `app/opengraph-image.tsx` (used for both `og:image` and `twitter:image`)
 - **Structured data**: JSON-LD `WebSite` + `WebApplication` schema injected in the root layout
+
+## Analytics
+
+The site uses pluggable, cookieless analytics: a lightweight tracker forwards
+pageviews and engagement events to a SaaS analytics provider. There is no
+analytics store of its own — when no provider credential is configured, no
+tracker is rendered at all.
+
+| Provider | Env var(s) | Notes |
+| --- | --- | --- |
+| [Umami](https://umami.is) | `UMAMI_WEBSITE_ID` (+ `UMAMI_SCRIPT_URL` for self-hosted) | Free cloud tier; lightest option |
+| [Plausible](https://plausible.io) | `PLAUSIBLE_DOMAIN` | Paid cloud; privacy-focused, clean UI |
+| [PostHog](https://posthog.com) | `POSTHOG_API_KEY` (+ `POSTHOG_API_HOST`) | Free tier (1M events/mo); **autocaptures every click**, heatmaps, funnels — best fit for "what are visitors clicking" |
+| [Google Analytics 4](https://analytics.google.com) | `GA4_MEASUREMENT_ID` | Free, familiar, heaviest script; shares data with Google |
+
+Set the credential (or force a choice with `ANALYTICS_PROVIDER=umami|plausible|posthog|ga4`) and redeploy. Provider ids/keys are read at build time (like `GOOGLE_SITE_VERIFICATION`), so set them before the build/deploy. `ANALYTICS_DISABLED=1` turns analytics off entirely.
+
+### What's tracked
+
+- **Pageviews** — on load and on client-side navigation
+- **Unique visitors / visits, region, browser, OS, device, referrers, UTM
+  tags** — captured by the provider's own tracker (country, browser and
+  device classification are its job, not the app's)
+- **Engagement events** —
+  - location searches (the typed query, truncated to 120 chars, and whether it
+    came from a suggestion, free text or the geolocate button)
+  - geolocate outcomes (granted / denied / unsupported)
+  - map opens (from bird cards and location cards), bird audio plays
+  - sightings time-range changes, "show more" clicks, theme toggles
+  - named clicks and all outbound link navigation (eBird species pages, RSPB
+    reserve pages, data-source credits, …)
+
+Events appear in the provider's dashboard: pageviews/visitors/referrers in the
+main stats, the named engagement events under its Events section (as
+`search`, `map_open`, `audio_play`, `geolocate`, `time_range`, `click`,
+`outbound` with a `label` and small props).
+
+With PostHog, raw clicks/outbound navigation come from its autocapture instead
+of the generic listeners (its heatmaps and funnels work out of the box).
+
+Privacy note: all providers above are cookieless. Choosing one does share the
+tracked events (including search text) with that provider — that's the
+trade-off for not running an analytics store yourself.
 
 ## Browser Support
 

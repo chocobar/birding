@@ -230,6 +230,7 @@ export default function LocationList({
           <div className="flex flex-col items-center mt-6 gap-1">
             <button
               onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
+              data-analytics="show-more-locations"
               className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-medium text-[var(--brand-green)] bg-[var(--warm-sand)] border border-[var(--border-light)] rounded-full hover:bg-[var(--brand-green)] hover:text-white hover:border-[var(--brand-green)] transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--brand-green)] focus:ring-offset-2"
             >
               Show more locations

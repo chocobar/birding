@@ -1,6 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import Providers from "@/components/Providers";
+import Analytics from "@/components/Analytics";
+import AnalyticsProviderScripts from "@/components/AnalyticsProviderScripts";
+import { resolveAnalyticsProvider } from "@/lib/server/analyticsProvider";
 import "./globals.css";
 
 const inter = Inter({
@@ -24,6 +27,11 @@ const themeScript = `
 `;
 
 const googleVerification = process.env.GOOGLE_SITE_VERIFICATION;
+
+// Which SaaS analytics provider is active (Umami/Plausible/PostHog/GA4),
+// or null when none is configured / ANALYTICS_DISABLED=1 — in which case
+// no tracker is rendered at all.
+const analyticsProvider = resolveAnalyticsProvider();
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -126,6 +134,7 @@ export default function RootLayout({
     <html lang="en" className={`${inter.className} h-full antialiased`} suppressHydrationWarning>
       <head>
         <script id="theme" dangerouslySetInnerHTML={{ __html: themeScript }} />
+        {analyticsProvider && <AnalyticsProviderScripts config={analyticsProvider} />}
       </head>
       <body className="min-h-full flex flex-col">
         <script
@@ -133,6 +142,14 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
         />
         <Providers>{children}</Providers>
+        {analyticsProvider && (
+          <Analytics
+            provider={analyticsProvider.provider}
+            measurementId={analyticsProvider.measurementId}
+            posthogApiKey={analyticsProvider.apiKey}
+            posthogApiHost={analyticsProvider.apiHost}
+          />
+        )}
       </body>
     </html>
   );

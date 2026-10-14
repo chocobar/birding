@@ -404,11 +404,12 @@ When updating documentation:
 
 By contributing to this project, you agree that:
 
-- Your contributions will be licensed under the same license as the project
+- Your contributions will be licensed under the **GNU Affero General Public License v3.0-or-later (AGPL-3.0-or-later)** — the same license as the project
 - You have the right to contribute the code/content
 - You understand the project's license terms
+- You grant the project maintainer the right to relicense your contributions as part of dual-licensed distributions of the project (this is what makes offering commercial licenses alongside the AGPL possible)
 
-See [LICENSE.md](LICENSE.md) for full license details.
+See [LICENSE.md](LICENSE.md) for a summary and [LICENSE](LICENSE) for the full license text.
 
 ## Recognition
 

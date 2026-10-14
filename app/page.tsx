@@ -137,10 +137,14 @@ export default function Home() {
 
             {/* Locations + RSPB reserves: side by side on wide screens so
                 neither list monopolises the page; stacked on mobile and when
-                the RSPB section hides itself */}
+                the RSPB section hides itself. On lg the two sections share
+                their rows via subgrid (header / toolbar / list) so both card
+                lists start at the same height even if the filter chips wrap */}
             <div
-              className={`grid gap-14 items-start ${
-                showRspbSection ? 'lg:grid-cols-2 lg:gap-10' : ''
+              className={`grid gap-14 ${
+                showRspbSection
+                  ? 'lg:grid-cols-2 lg:gap-x-10 lg:gap-y-0 lg:[&>section]:grid lg:[&>section]:grid-rows-subgrid lg:[&>section]:row-span-3'
+                  : ''
               }`}
             >
               <LocationList

@@ -58,9 +58,10 @@ function fetchEbird(path: string, params: URLSearchParams): Promise<Response> {
 
 async function fetchHotspotObservationCount(locId: string): Promise<number> {
   const response = await fetchEbird(
-    `data/obs/hotspot/recent/${encodeURIComponent(locId)}`,
+    `data/obs/${encodeURIComponent(locId)}/recent`,
     new URLSearchParams({ back: OBS_WINDOW_DAYS.toString() })
   );
+  if (response.status === 404) return 0;
   if (!response.ok) throw new Error(`eBird hotspot obs ${locId} returned ${response.status}`);
   const observations: EBirdHotspotObservation[] = await response.json();
   return new Set(observations.map((obs) => obs.speciesCode)).size;
@@ -95,6 +96,7 @@ async function loadHotspotRichness(
       lat: latitude.toString(),
       lng: longitude.toString(),
       dist: distKm.toString(),
+      fmt: 'json',
     })
   );
   if (!hotspotResponse.ok) {

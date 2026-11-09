@@ -3,6 +3,7 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { getBirdsForLocation, BirdResult } from '@/lib/api/birdClient';
 import { getNotableSightings, NotableResult } from '@/lib/api/notableClient';
+import { getHotspotRichness, HotspotRichness } from '@/lib/api/hotspotClient';
 import { getNearbyLocations, getOsmLineGeometry, NearbyLocationsResult } from '@/lib/api/locationClient';
 import { getRspbReserves, RspbReserve } from '@/lib/api/rspbClient';
 
@@ -65,6 +66,21 @@ export function useRspbReserves(latitude: number | null, longitude: number | nul
   return useQuery<RspbReserve[]>({
     queryKey: ['rspb-reserves', latitude, longitude],
     queryFn: () => getRspbReserves(latitude!, longitude!),
+    enabled: latitude !== null && longitude !== null,
+    retry: 0,
+    staleTime: 1000 * 60 * 15,
+  });
+}
+
+/**
+ * Fetch recent species counts for eBird hotspots near a geodedic position.
+ * Cached by lat/lng. Best-effort: failures resolve to an empty list so the
+ * location list renders without badges instead of surfacing an error.
+ */
+export function useHotspotRichness(latitude: number | null, longitude: number | null) {
+  return useQuery<HotspotRichness[]>({
+    queryKey: ['hotspot-richness', latitude, longitude],
+    queryFn: () => getHotspotRichness(latitude!, longitude!),
     enabled: latitude !== null && longitude !== null,
     retry: 0,
     staleTime: 1000 * 60 * 15,

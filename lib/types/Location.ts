@@ -29,4 +29,5 @@ export interface Location {
   network?: 'nwn' | 'rwn' | 'lwn'; // OSM walking network: national / regional / local
   surface?: string; // e.g. "paved", "gravel", "dirt"
   website?: string; // Official route website from OSM tags
+  isRspb?: boolean; // OSM tags say the feature is RSPB-operated (operator/brand or Wikidata Q1892802)
 }

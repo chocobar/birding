@@ -1,6 +1,7 @@
 import { Location } from '@/lib/types';
 import { calculateDistance } from '@/lib/utils/distanceCalculator';
 import { generateDescription } from '@/lib/api/geoapify';
+import { isRspbOperated } from '@/lib/utils/rspbOperator';
 
 /**
  * Overpass client, scoped to one job: discovering real trails. Named
@@ -359,6 +360,9 @@ export function parseTrailRelations(
         network,
         surface: tags.surface || undefined,
         website: tags.website || undefined,
+        // Free byproduct of the tags the query already returns — no new
+        // Overpass queries for this
+        isRspb: isRspbOperated(tags),
       };
     })
     .sort((a, b) => a.distance - b.distance)

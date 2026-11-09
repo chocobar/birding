@@ -1,5 +1,6 @@
 import { Location } from '@/lib/types';
 import { calculateDistance } from '@/lib/utils/distanceCalculator';
+import { isRspbOperated } from '@/lib/utils/rspbOperator';
 
 /**
  * Geoapify client. Geoapify serves OpenStreetMap-derived data through a
@@ -308,6 +309,9 @@ function featureToLocation(
     tags: leaf ? [leaf] : undefined,
     osmRelationId: osmRef?.type === 'relation' ? osmRef.id : undefined,
     osmWayId: osmRef?.type === 'way' ? osmRef.id : undefined,
+    // RSPB-run sites surface a badge; the raw OSM tags already came back with
+    // the feature, so this costs no extra request (missing tags → no badge)
+    isRspb: isRspbOperated(raw as Record<string, string | undefined> | undefined),
   };
 }
 

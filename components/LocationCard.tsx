@@ -24,6 +24,7 @@ interface LocationCardProps {
     lengthKm?: number;
     network?: 'nwn' | 'rwn' | 'lwn';
     website?: string;
+    isRspb?: boolean;
   };
 }
 
@@ -109,6 +110,11 @@ export default function LocationCard({ location }: LocationCardProps) {
               {networkLabel && (
                 <span className="px-2 py-0.5 text-xs font-medium text-[var(--text-secondary)] bg-[var(--warm-cream)] rounded-full border border-[var(--border-light)]">
                   {networkLabel}
+                </span>
+              )}
+              {location.isRspb && (
+                <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-teal-50 text-teal-700 border border-teal-200 dark:bg-teal-950/70 dark:text-teal-200 dark:border-teal-800">
+                  RSPB Reserve
                 </span>
               )}
               {lengthKm !== undefined && (

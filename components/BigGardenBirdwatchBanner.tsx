@@ -1,22 +1,29 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 import { Binoculars, ExternalLink } from 'lucide-react';
 import { RSPB_BGB_URL } from '@/lib/utils/rspbReserveNames';
 
 /**
  * Seasonal 'Big Garden Birdwatch' call-to-action, deep-linked to the RSPB's
- * campaign page. Shown only in December and January; the month is read after
- * mount so the prerendered HTML never disagrees with the client over the
- * banner (no hydration mismatch). Best-effort: a plain anchor, nothing to
- * break if the RSPB URL ever changes.
+ * campaign page. Shown only in December and January; the month is read
+ * client-side via useSyncExternalStore so the prerendered HTML (server
+ * snapshot: hidden) never disagrees with the client (no hydration mismatch).
+ * Best-effort: a plain anchor, nothing to break if the RSPB URL changes.
  */
-export default function BigGardenBirdwatchBanner() {
-  const [month, setMonth] = useState<number | null>(null);
 
-  useEffect(() => {
-    setMonth(new Date().getMonth());
-  }, []);
+const subscribe = () => () => {};
+
+function getMonth(): number {
+  return new Date().getMonth();
+}
+
+function getServerMonth(): number | null {
+  return null;
+}
+
+export default function BigGardenBirdwatchBanner() {
+  const month = useSyncExternalStore(subscribe, getMonth, getServerMonth);
 
   if (month === null || !(month === 11 || month === 0)) return null;
 

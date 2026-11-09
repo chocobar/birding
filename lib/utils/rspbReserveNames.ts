@@ -6,6 +6,14 @@
 
 const RSPB_RESERVES_BASE_URL = 'https://www.rspb.org.uk/days-out/reserves';
 
+/** RSPB's events site. Blocked to automated clients (403) but fine in browsers —
+ *  we link out to it, we never fetch or proxy it. */
+export const RSPB_EVENTS_URL = 'https://events.rspb.org.uk/';
+
+/** The RSPB's Big Garden Birdwatch campaign page (live as of Nov 2026). */
+export const RSPB_BGB_URL =
+  'https://www.rspb.org.uk/whats-happening/big-garden-birdwatch';
+
 /** Small words kept lowercase mid-name ('Ouse Washes', 'The Lodge'). */
 const SMALL_WORDS = new Set(['of', 'the', 'and', 'a', 'an', 'on', 'in', 'at', 'for', 'to', 'by']);
 

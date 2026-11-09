@@ -7,6 +7,7 @@ import BirdList from '@/components/BirdList';
 import LocationList from '@/components/LocationList';
 import NotableSightingsStrip from '@/components/NotableSightingsStrip';
 import RspbReserveList from '@/components/RspbReserveList';
+import BigGardenBirdwatchBanner from '@/components/BigGardenBirdwatchBanner';
 import { useBirdSearch, useLocationSearch, useNotableSightings, useRspbReserves } from '@/lib/hooks/useBirdSearch';
 import { GeocodedLocation } from '@/lib/types';
 import {
@@ -97,6 +98,9 @@ export default function Home() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Seasonal Big Garden Birdwatch call-to-action (self-hiding) */}
+        <BigGardenBirdwatchBanner />
+
         {/* Search Section */}
         <section className="py-10 sm:py-14">
           <LocationSearch

@@ -28,6 +28,8 @@ interface LocationListProps {
   postcode?: string;
   /** Which upstream served these results — drives the Geoapify credit */
   dataSource?: LocationDataSource;
+  /** location.id → species reported there on eBird in the last 7 days */
+  speciesCounts?: Map<string, number>;
 }
 
 function SkeletonCard() {
@@ -87,15 +89,18 @@ export default function LocationList({
   onRetry,
   postcode,
   dataSource,
+  speciesCounts,
 }: LocationListProps) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [filter, setFilter] = useState<FilterKey>('all');
+  const [sortByRichness, setSortByRichness] = useState(false);
   const [prevLocations, setPrevLocations] = useState(locations);
 
   if (prevLocations !== locations) {
     setPrevLocations(locations);
     setVisibleCount(PAGE_SIZE);
     setFilter('all');
+    setSortByRichness(false);
   }
 
   if (isLoading) {
@@ -176,11 +181,23 @@ export default function LocationList({
     ? locations
     : locations.filter((location) => location.type === filter);
 
-  const visibleLocations = filtered.slice(0, visibleCount);
-  const hasMore = visibleCount < filtered.length;
+  const hasRichness = !!speciesCounts && speciesCounts.size > 0;
+  const ordered = hasRichness && sortByRichness
+    ? [...filtered].sort(
+        (a, b) => (speciesCounts!.get(b.id) ?? -1) - (speciesCounts!.get(a.id) ?? -1)
+      )
+    : filtered;
+
+  const visibleLocations = ordered.slice(0, visibleCount);
+  const hasMore = visibleCount < ordered.length;
 
   const handleFilterChange = (key: FilterKey) => {
     setFilter(key);
+    setVisibleCount(PAGE_SIZE);
+  };
+
+  const handleToggleRichness = () => {
+    setSortByRichness((prev) => !prev);
     setVisibleCount(PAGE_SIZE);
   };
 
@@ -204,6 +221,22 @@ export default function LocationList({
 
       <div className="mb-6">
         <FilterChips active={filter} counts={counts} onChange={handleFilterChange} />
+        {hasRichness && (
+          <div className="mt-2">
+            <button
+              onClick={handleToggleRichness}
+              aria-pressed={sortByRichness}
+              data-analytics="sort-by-richness"
+              className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--brand-green)] focus:ring-offset-1 ${
+                sortByRichness
+                  ? 'bg-[var(--brand-green)] text-white border-[var(--brand-green)]'
+                  : 'bg-[var(--warm-sand)] text-[var(--text-secondary)] border-[var(--border-light)] hover:border-[var(--brand-green)] hover:text-[var(--brand-green)]'
+              }`}
+            >
+              Sorted by recent sightings
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Cards, load-more and attribution share the third subgrid row so the
@@ -220,7 +253,7 @@ export default function LocationList({
                 key={location.id}
                 className={index >= PAGE_SIZE ? 'animate-fade-in-up' : ''}
               >
-                <LocationCard location={location} />
+                <LocationCard location={location} speciesCount={speciesCounts?.get(location.id)} />
               </div>
             ))
           )}
@@ -262,6 +295,19 @@ export default function LocationList({
                 className="text-[var(--brand-green)] underline decoration-[var(--brand-green-light)] hover:decoration-[var(--brand-green)]"
               >
                 Powered by Geoapify
+              </a>
+            </>
+          )}
+          {hasRichness && (
+            <>
+              {' · '}
+              <a
+                href="https://ebird.org"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[var(--brand-green)] underline decoration-[var(--brand-green-light)] hover:decoration-[var(--brand-green)]"
+              >
+                Bird data by eBird
               </a>
             </>
           )}

@@ -25,6 +25,7 @@ interface LocationCardProps {
     network?: 'nwn' | 'rwn' | 'lwn';
     website?: string;
   };
+  speciesCount?: number;
 }
 
 const locationIcons = {
@@ -69,7 +70,7 @@ const networkLabels = {
   lwn: 'Local Walk',
 };
 
-export default function LocationCard({ location }: LocationCardProps) {
+export default function LocationCard({ location, speciesCount }: LocationCardProps) {
   const { openMapId, openMap, closeMap } = useMapOpen();
   const mapKey = `location:${location.id}`;
   const isMapOpen = openMapId === mapKey;
@@ -109,6 +110,11 @@ export default function LocationCard({ location }: LocationCardProps) {
               {networkLabel && (
                 <span className="px-2 py-0.5 text-xs font-medium text-[var(--text-secondary)] bg-[var(--warm-cream)] rounded-full border border-[var(--border-light)]">
                   {networkLabel}
+                </span>
+              )}
+              {speciesCount !== undefined && (
+                <span className="px-2 py-0.5 text-xs font-medium bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200 dark:bg-emerald-950/70 dark:text-emerald-200 dark:border-emerald-800">
+                  {speciesCount} species this week
                 </span>
               )}
               {lengthKm !== undefined && (

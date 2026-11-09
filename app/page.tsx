@@ -7,7 +7,8 @@ import BirdList from '@/components/BirdList';
 import LocationList from '@/components/LocationList';
 import NotableSightingsStrip from '@/components/NotableSightingsStrip';
 import RspbReserveList from '@/components/RspbReserveList';
-import { useBirdSearch, useLocationSearch, useNotableSightings, useRspbReserves } from '@/lib/hooks/useBirdSearch';
+import { useBirdSearch, useHotspotRichness, useLocationSearch, useNotableSightings, useRspbReserves } from '@/lib/hooks/useBirdSearch';
+import { matchHotspotsToLocations } from '@/lib/utils/hotspotMatcher';
 import { GeocodedLocation } from '@/lib/types';
 import {
   DEFAULT_TIME_RANGE_ID,
@@ -31,6 +32,7 @@ export default function Home() {
   const locationQuery = useLocationSearch(coords?.latitude ?? null, coords?.longitude ?? null);
   const notableQuery = useNotableSightings(coords?.latitude ?? null, coords?.longitude ?? null);
   const rspbQuery = useRspbReserves(coords?.latitude ?? null, coords?.longitude ?? null);
+  const hotspotQuery = useHotspotRichness(coords?.latitude ?? null, coords?.longitude ?? null);
 
   const handleSearch = (location: GeocodedLocation) => {
     setLocationName(location.displayName);
@@ -48,9 +50,11 @@ export default function Home() {
   const locations = locationQuery.data?.locations ?? [];
   const dataSource = locationQuery.data?.source;
   const notableSightings = notableQuery.data?.sightings ?? [];
+  const speciesCounts = matchHotspotsToLocations(locations, hotspotQuery.data ?? []);
 
   // eBird deserves attribution whenever any of its data is shown
-  const hasEbirdData = isLiveData || (notableQuery.data?.isLiveData ?? false);
+  const hasEbirdData =
+    isLiveData || (notableQuery.data?.isLiveData ?? false) || speciesCounts.size > 0;
 
   const rspbReserves = rspbQuery.data ?? [];
 
@@ -156,6 +160,7 @@ export default function Home() {
                 onRetry={() => locationQuery.refetch()}
                 postcode={locationName}
                 dataSource={dataSource}
+                speciesCounts={speciesCounts}
               />
 
               {/* RSPB Reserves Section (self-hiding when empty) */}
